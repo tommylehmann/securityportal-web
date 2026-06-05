@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="SecurityPortal">
+  <rect width="32" height="32" rx="6" fill="#1d4ed8" />
+  <path
+    d="M16 4 6 8v7c0 6.1 4.1 9.9 10 13 5.9-3.1 10-6.9 10-13V8L16 4Z"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="2"
+    stroke-linejoin="round"
+  />
+</svg>

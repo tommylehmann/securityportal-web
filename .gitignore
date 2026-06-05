@@ -1,0 +1,32 @@
+# This file is Free Software under the Apache-2.0 License
+# without warranty, see README.md and LICENSES/Apache-2.0.txt for details.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# SPDX-FileCopyrightText: 2026 SecurityPortal contributors
+
+node_modules/
+
+# SvelteKit / build output
+/build/
+/.svelte-kit/
+/package/
+
+# Local environment overrides (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# Lint / format caches
+.eslintcache
+.prettiercache
+
+# Test + coverage output
+/coverage/
+/test-results/
+/playwright-report/
+
+# Editor / OS noise
+.DS_Store
+*.swp
+vite.config.*.timestamp-*
