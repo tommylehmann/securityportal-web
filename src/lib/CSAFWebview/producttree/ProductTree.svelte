@@ -1,0 +1,99 @@
+<!--
+ This file is Free Software under the Apache-2.0 License
+ without warranty, see README.md and LICENSES/Apache-2.0.txt for details.
+
+ SPDX-License-Identifier: Apache-2.0
+
+ SPDX-FileCopyrightText: 2023 German Federal Office for Information Security (BSI) <https://www.bsi.bund.de>
+ Software-Engineering: 2023 Intevation GmbH <https://intevation.de>
+-->
+
+<script lang="ts">
+  import { appStore } from "$lib/CSAFWebview/store.svelte";
+  import Branch from "./branch/Branch.svelte";
+  import Collapsible from "$lib/CSAFWebview/Collapsible.svelte";
+  import ProductGroups from "./productgroup/ProductGroups.svelte";
+  import ProductNames from "./product/ProductNames.svelte";
+  import Relationships from "./relationship/Relationships.svelte";
+  import { productTreeCutoffs } from "../efficiencyCutoffs";
+  import { untrack } from "svelte";
+
+  interface Props {
+    basePath: string;
+  }
+  let { basePath }: Props = $props();
+
+  const uid = $props.id();
+
+  let openSubBranches = $state(false);
+  let openBranches = $state(false);
+  let openRelationships = $state(false);
+  let selectedProduct = $derived(appStore.state.webview.ui.selectedProduct);
+
+  $effect(() => {
+    untrack(() => openSubBranches);
+    untrack(() => openBranches);
+    untrack(() => openRelationships);
+    let size = 0;
+    for (let branch of appStore.state.webview.doc?.productTree.branches ?? []) {
+      if (branch.branches) {
+        size = size + branch.branches.length;
+      }
+      if (size >= productTreeCutoffs.level2Upper) {
+        break;
+      }
+    }
+    openBranches = !!selectedProduct || size <= productTreeCutoffs.level2Upper;
+    openSubBranches = !!selectedProduct || size <= productTreeCutoffs.level2Lower;
+    openRelationships =
+      appStore.state.webview.doc?.productTree.relationships?.length ??
+      0 <= productTreeCutoffs.relations;
+  });
+</script>
+
+{#if appStore.state.webview.doc?.productTree.branches}
+  <Collapsible
+    header="Branches"
+    open={!!selectedProduct ||
+      appStore.state.webview.doc?.productTree.branches.length <= productTreeCutoffs.level1}
+    path="/product_tree"
+  >
+    {#each appStore.state.webview.doc?.productTree.branches as branch, i (`producttree-${uid}-${i}`)}
+      <Branch
+        {branch}
+        {openSubBranches}
+        open={openBranches}
+        path={`/product_tree/branches[${i}]`}
+      />
+    {/each}
+  </Collapsible>
+{/if}
+
+{#if appStore.state.webview.doc?.productTree.relationships}
+  <Collapsible
+    header="Relationships"
+    open={!!selectedProduct || openRelationships}
+    path="/product_tree"
+  >
+    <Relationships
+      {basePath}
+      relationships={appStore.state.webview.doc?.productTree.relationships}
+    />
+  </Collapsible>
+{/if}
+
+{#if appStore.state.webview.doc?.productTree.product_groups}
+  <Collapsible header="Product groups" open path="/product_tree">
+    <ProductGroups
+      productGroups={!selectedProduct && appStore.state.webview.doc?.productTree.product_groups}
+    />
+  </Collapsible>
+{/if}
+
+{#if appStore.state.webview.doc?.productTree.full_product_names}
+  <Collapsible header="Full Product Names" open path="/product_tree">
+    <ProductNames
+      productNames={!selectedProduct && appStore.state.webview.doc?.productTree.full_product_names}
+    />
+  </Collapsible>
+{/if}

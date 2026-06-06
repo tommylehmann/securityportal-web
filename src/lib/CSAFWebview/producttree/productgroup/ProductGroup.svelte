@@ -1,0 +1,28 @@
+<!--
+ This file is Free Software under the Apache-2.0 License
+ without warranty, see README.md and LICENSES/Apache-2.0.txt for details.
+
+ SPDX-License-Identifier: Apache-2.0
+
+ SPDX-FileCopyrightText: 2023 German Federal Office for Information Security (BSI) <https://www.bsi.bund.de>
+ Software-Engineering: 2023 Intevation GmbH <https://intevation.de>
+-->
+
+<script lang="ts">
+  import type { ProductGroup } from "$lib/CSAFWebview/pmdTypes";
+  import ValueField from "$lib/CSAFWebview/ValueField.svelte";
+  import ValueList from "$lib/CSAFWebview/ValueList.svelte";
+
+  interface Props {
+    productGroup: ProductGroup;
+    path: string;
+  }
+  let { productGroup, path }: Props = $props();
+</script>
+
+<ValueList label="Group IDs" values={productGroup.group_ids} path={`${path}/group_id`} />
+<ValueList label="Product IDs" values={productGroup.product_ids} path={`${path}/product_ids`} />
+
+{#if productGroup.summary}
+  <ValueField label="Summary" value={productGroup.summary} path={`${path}/summary`} />
+{/if}

@@ -1,0 +1,105 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "text": "Hoch"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "de-DE",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "Eine kritische Schwachstelle wurde in der ExampleApp gefunden.\nEin entfernter Angreifer kann beliebigen Code ausführen.\n\nBitte aktualisieren Sie umgehend auf die Version 2.0.1.",
+        "title": "Zusammenfassung"
+      },
+      {
+        "category": "general",
+        "text": "Markup-Probe: <img src=x onerror=alert(1)> & <b>kein Fettdruck</b>\nZweite Zeile.",
+        "title": "Hinweis"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "name": "Example AG",
+      "namespace": "https://www.example.test"
+    },
+    "title": "ExampleApp: Schwachstelle ermöglicht Codeausführung",
+    "tracking": {
+      "current_release_date": "2026-05-20T10:00:00.000Z",
+      "id": "DE-2026-0001",
+      "initial_release_date": "2026-05-20T10:00:00.000Z",
+      "revision_history": [
+        {
+          "date": "2026-05-20T10:00:00.000Z",
+          "number": "1",
+          "summary": "Erstveröffentlichung"
+        }
+      ],
+      "status": "final",
+      "version": "1"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "category": "vendor",
+        "name": "Example AG",
+        "branches": [
+          {
+            "category": "product_name",
+            "name": "ExampleApp",
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "2.0.0",
+                "product": {
+                  "name": "ExampleApp 2.0.0",
+                  "product_id": "CSAFPID-0001"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2026-12345",
+      "notes": [
+        {
+          "category": "description",
+          "text": "Unzureichende Eingabevalidierung erlaubt das Einschleusen von Befehlen.\nDie Schwachstelle betrifft alle Konfigurationen.",
+          "title": "Beschreibung"
+        }
+      ],
+      "product_status": {
+        "known_affected": ["CSAFPID-0001"]
+      },
+      "scores": [
+        {
+          "cvss_v3": {
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": ["CSAFPID-0001"]
+        }
+      ],
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "details": "Aktualisieren Sie auf ExampleApp 2.0.1.\nStarten Sie den Dienst anschließend neu.",
+          "product_ids": ["CSAFPID-0001"]
+        }
+      ]
+    }
+  ]
+}

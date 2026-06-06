@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-# SPDX-FileCopyrightText: 2026 SecurityPortal contributors
+# SPDX-FileCopyrightText: 2026 Tommy Lehmann
 
 # Build the SvelteKit frontend.
 FROM library/node:20-alpine AS build

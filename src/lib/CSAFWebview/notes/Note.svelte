@@ -1,0 +1,52 @@
+<!--
+ This file is Free Software under the Apache-2.0 License
+ without warranty, see README.md and LICENSES/Apache-2.0.txt for details.
+
+ SPDX-License-Identifier: Apache-2.0
+
+ SPDX-FileCopyrightText: 2023 German Federal Office for Information Security (BSI) <https://www.bsi.bund.de>
+ Software-Engineering: 2023 Intevation GmbH <https://intevation.de>
+-->
+
+<script lang="ts">
+  import KeyValue from "$lib/CSAFWebview/KeyValue.svelte";
+  import type { Note } from "$lib/CSAFWebview/docmodel/docmodeltypes";
+  import SearchableText from "../SearchableText.svelte";
+
+  interface Props {
+    note: Note;
+    path: string;
+  }
+  let { note, path }: Props = $props();
+
+  let keys: string[] = $derived(note.audience ? ["Audience"] : []);
+  let values: string[] = $derived(note.audience ? [note.audience] : []);
+  let paths: string[] = $derived(note.audience ? [`${path}/audience`] : []);
+</script>
+
+<KeyValue {keys} {values} {paths} />
+<div class="ml-7">
+  <h5>Text</h5>
+</div>
+
+<!--
+  Render the note body as escaped plain text with preserved line breaks
+  (ADR 0001). The upstream `display-markdown` class was never defined and is
+  dropped; `SearchableText` applies `white-space: pre-wrap`.
+-->
+<div class="note-text">
+  <div class="max-w-2/3">
+    <SearchableText text={note.text} textPath={`${path}/text`} />
+  </div>
+</div>
+
+<style>
+  .note-text {
+    margin-left: 1.75rem;
+    padding: 0.5rem;
+    border: 1px solid lightgray;
+    min-width: 200px;
+    overflow-x: auto;
+    position: relative;
+  }
+</style>
