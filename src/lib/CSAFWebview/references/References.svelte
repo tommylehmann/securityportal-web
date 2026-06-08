@@ -44,8 +44,14 @@
                   text={reference.summary}
                 ></SearchableText>
               </p>
-              <Link class="underline" href={reference.url}
-                ><i class="bx bx-link"></i>
+              <!--
+                Link.svelte enforces the href scheme allow-list (decisions/0007).
+                A javascript:/data:/vbscript: URL renders as inert text, not a
+                live anchor. External references open in a new tab; rel is set
+                automatically by Link when target="_blank".
+              -->
+              <Link class="underline" href={reference.url} target="_blank">
+                <i class="bx bx-link"></i>
                 <SearchableText textPath={`${path}/references[${i}]/url`} text={reference.url}
                 ></SearchableText>
               </Link></TableBodyCell

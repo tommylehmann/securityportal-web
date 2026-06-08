@@ -27,6 +27,11 @@ const fixturesDir = join(here, "..", "..", "src", "lib", "CSAFWebview", "__fixtu
 
 const deDoc = JSON.parse(readFileSync(join(fixturesDir, "de-2026-0001.json"), "utf8"));
 const enDoc = JSON.parse(readFileSync(join(fixturesDir, "en-bsi-2022-0001.json"), "utf8"));
+// Security-test fixture: references contain javascript: and data: payloads (id 3).
+// Used by the href-scheme allow-list e2e specs (SA-8, task 22 / C-1).
+const maliciousHrefsDoc = JSON.parse(
+  readFileSync(join(fixturesDir, "malicious-hrefs.json"), "utf8")
+);
 
 // The canned list. Row order here is the API's default (current_release_date desc):
 // the EN advisory (2022) would normally sort *after* the DE one (2026), so the
@@ -168,7 +173,7 @@ const CAPPED_ROWS = Array.from({ length: 60 }, (_, i) => ({
   products: [`Product ${String(i).padStart(2, "0")}`]
 }));
 
-const DOCS = { 1: deDoc, 2: enDoc };
+const DOCS = { 1: deDoc, 2: enDoc, 3: maliciousHrefsDoc };
 
 // Mutable scenario state, flipped via /__mock/scenario.
 //  - "ok":     serve the canned 2-row list / documents (default).

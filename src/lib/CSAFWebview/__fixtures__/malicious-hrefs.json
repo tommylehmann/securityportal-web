@@ -1,0 +1,61 @@
+{
+  "document": {
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en-US",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "An advisory whose reference URLs include javascript: and data: payloads. This fixture is used to verify that those schemes render as inert escaped text and never as live anchors.",
+        "title": "Summary"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "name": "Security Test Publisher",
+      "namespace": "https://safe.example.com"
+    },
+    "references": [
+      {
+        "category": "external",
+        "summary": "Malicious javascript: reference",
+        "url": "javascript:alert(document.domain)"
+      },
+      {
+        "category": "external",
+        "summary": "Malicious data: reference",
+        "url": "data:text/html,<script>alert(1)</script>"
+      },
+      {
+        "category": "external",
+        "summary": "Safe HTTPS reference",
+        "url": "https://safe.example.com/advisory"
+      }
+    ],
+    "title": "Security test: malicious href fixture",
+    "tracking": {
+      "current_release_date": "2026-06-08T10:00:00.000Z",
+      "id": "SEC-TEST-0001",
+      "initial_release_date": "2026-06-08T10:00:00.000Z",
+      "revision_history": [
+        {
+          "date": "2026-06-08T10:00:00.000Z",
+          "number": "1",
+          "summary": "Initial"
+        }
+      ],
+      "status": "final",
+      "version": "1"
+    }
+  },
+  "product_tree": {
+    "branches": []
+  },
+  "vulnerabilities": []
+}

@@ -1,0 +1,101 @@
+# This file is Free Software under the Apache-2.0 License
+# without warranty, see README.md and LICENSES/Apache-2.0.txt for details.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# SPDX-FileCopyrightText: 2026 Tommy Lehmann
+
+# Security scanning workflow for securityportal-web (C-6 / SA-16).
+#
+# Runs on every push and pull request to main, and on a weekly schedule so
+# newly-published advisories for unchanged code are caught promptly.
+#
+# Jobs:
+#   audit   — npm audit: known-vuln scan for production dependencies.
+#   sbom    — CycloneDX SBOM generation (@cyclonedx/cyclonedx-npm); artifact uploaded.
+
+name: Security — Web
+
+on:
+  push:
+    branches: ["main", "master"]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - ".github/workflows/security.yml"
+  pull_request:
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - ".github/workflows/security.yml"
+  schedule:
+    # Weekly on Monday 06:15 UTC — offset from the API job to spread load.
+    - cron: "15 6 * * 1"
+
+jobs:
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # conventions.md: Node >= 20; use current LTS.
+          node-version: "lts/*"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        # --omit=dev limits the audit to packages that ship to users. Dev-only
+        # vulnerabilities in build/test tools are reported separately below but do
+        # not fail the gate (they cannot reach the browser bundle).
+        run: npm audit --omit=dev
+
+      - name: Audit all dependencies (informational)
+        # Run the full audit for visibility; failures here are informational only
+        # (dev-dep vulns cannot reach production). Use `continue-on-error` so this
+        # step surfaces counts without blocking the overall job.
+        run: npm audit || true
+
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # conventions.md: Node >= 20; use current LTS.
+          node-version: "lts/*"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install @cyclonedx/cyclonedx-npm
+        # CycloneDX for npm generates a CycloneDX SBOM from package-lock.json.
+        # Installed globally here so it is available as a CLI command.
+        run: npm install -g @cyclonedx/cyclonedx-npm
+
+      - name: Generate SBOM
+        run: |
+          cyclonedx-npm \
+            --output-format JSON \
+            --output-file securityportal-web-sbom.cdx.json \
+            --production-only
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: securityportal-web-sbom
+          path: securityportal-web-sbom.cdx.json
+          retention-days: 90

@@ -59,7 +59,15 @@
           <TableBodyRow color="default"
             ><TableBodyCell class={cellStyle}>{key}</TableBodyCell>
             <TableBodyCell class={cellStyle}>
-              {#if typeof values[index] === "string" && values[index].startsWith && values[index].startsWith("https://")}
+              {#if typeof values[index] === "string"}
+                <!--
+                  Link.svelte now owns the scheme allow-list (decisions/0007 / C-1).
+                  A safe URL (http/https/mailto) renders as a live anchor; anything
+                  else (javascript:, data:, etc.) is rendered as inert escaped text
+                  by Link itself. The old startsWith("https://") guard is replaced
+                  by this uniform path — all string values pass through Link so none
+                  bypass the allow-list.
+                -->
                 <Link class="underline" href={values[index]}>
                   <i class="bx bx-link"></i>
                   <SearchableText text={values[index]} textPath={paths?.[index] ?? ""} />

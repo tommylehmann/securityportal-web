@@ -69,7 +69,11 @@
       <div class={cellStyleKey}>Publisher namespace</div>
       <div class={cellStyleValue}>
         {#if publisherNamespace}
-          <Link href={publisherNamespace} class="underline">
+          <!--
+            Link.svelte enforces the scheme allow-list (decisions/0007 / C-1):
+            a javascript:/data: namespace URL renders as inert text, not a link.
+          -->
+          <Link href={publisherNamespace} class="underline" target="_blank">
             <i class="bx bx-link"></i>
             <SearchableText text={publisherNamespace} textPath="/document/publisher/namespace" />
           </Link>
@@ -136,7 +140,14 @@
         {#if appStore.state.webview.doc?.aggregateSeverity.namespace}
           <div class={cellStyleKey}>Aggregate severity namespace</div>
           <div class={cellStyleValue}>
-            <Link href={appStore.state.webview.doc?.aggregateSeverity.namespace} class="underline">
+            <!--
+            Link.svelte enforces the scheme allow-list (decisions/0007 / C-1).
+          -->
+            <Link
+              href={appStore.state.webview.doc?.aggregateSeverity.namespace}
+              class="underline"
+              target="_blank"
+            >
               <i class="bx bx-link"></i>
               <SearchableText
                 text={appStore.state.webview.doc.aggregateSeverity.namespace}

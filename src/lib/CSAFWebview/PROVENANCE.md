@@ -80,6 +80,36 @@ The reference viewers (`csaf_webview`, ISDuBA) put free text in normal flow
 (collapsing `\n`) and referenced an undefined `display-markdown` class; both
 defects are corrected here.
 
+### 3. href scheme allow-list (control C-1, decisions/0007, mandatory security fix — 2026-06-08)
+
+CSAF documents can contain arbitrary URLs in `references[].url`,
+`publisher.namespace`, `aggregate_severity.namespace`, and similar fields.
+Without scheme validation, a `javascript:`, `data:`, or `vbscript:` URL placed
+in any of these fields would become a live `<a href>` — a one-click stored-XSS
+vector (threat model §5, SA-8).
+
+The fix is concentrated in two places:
+
+- **`components/Link.svelte`** (SecurityPortal-authored, 2026 Tommy Lehmann) —
+  now imports `isSafeUrl` from the new `safeUrl.ts` helper and renders a live
+  `<a>` only when the scheme is `http:`, `https:`, or `mailto:`. All other
+  schemes (including `javascript:`, `data:`, `vbscript:`) render as a `<span>`,
+  making the URL visible as escaped text but not clickable. Any `target="_blank"`
+  link automatically receives `rel="noopener noreferrer"`.
+- **`KeyValue.svelte`** (vendored, BSI/Intevation) — the ad-hoc
+  `startsWith("https://")` guard is **replaced** by routing every string value
+  through `<Link href={value}>`, so the allow-list is enforced uniformly by
+  `Link.svelte`. The upstream guard was inconsistent (it only covered `https:`
+  not `http:` or `mailto:`, and was absent from other components).
+
+The affected vendored files (`KeyValue.svelte`, `references/References.svelte`,
+`general/General.svelte`) retain their original BSI/Intevation SPDX headers.
+The security modification is confined to the link-rendering path and does not
+alter the structural or visual layout of the components.
+
+**New file:** `safeUrl.ts` (SecurityPortal-authored, 2026 Tommy Lehmann) — pure
+helper exporting `isSafeUrl(url)`. Accompanied by `safeUrl.test.ts`.
+
 ## Icons
 
 The vendored components use Boxicons (`bx ...`) classes for chevrons and product
