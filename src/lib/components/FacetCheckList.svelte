@@ -9,6 +9,9 @@
 
 <script lang="ts">
   import type { FacetGroup } from "$lib/api/types";
+  import { getI18n } from "$lib/i18n/context.svelte";
+
+  const { t } = getI18n();
 
   interface Props {
     /** The counted values for this dimension (from /api/facets). */
@@ -48,7 +51,7 @@
 </script>
 
 {#if values.length === 0 && orphanSelected.length === 0}
-  <p class="text-xs text-gray-500 dark:text-gray-400">No values.</p>
+  <p class="text-xs text-gray-500 dark:text-gray-400">{t("filter.noValues")}</p>
 {:else}
   <ul class="max-h-56 space-y-1 overflow-y-auto pr-1 text-sm">
     {#each values as entry (entry.value)}
@@ -89,7 +92,7 @@
   </ul>
   {#if group?.capped}
     <p class="mt-2 text-xs italic text-gray-500 dark:text-gray-400">
-      Showing the most frequent values; refine the search to narrow this list.
+      {t("filter.cappedNotice")}
     </p>
   {/if}
 {/if}

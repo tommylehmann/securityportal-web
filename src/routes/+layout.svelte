@@ -14,29 +14,107 @@
   // upstream csaf_webview uses. Importing the stylesheet makes those glyphs
   // render; without it the classes are inert. (Runtime dep: boxicons.)
   import "boxicons/css/boxicons.min.css";
+  import { untrack } from "svelte";
   import { resolve } from "$app/paths";
+  import { LOCALES, type Locale, type MessageKey } from "$lib/i18n";
+  import { setI18n } from "$lib/i18n/context.svelte";
+  import { setLocale } from "$lib/i18n/client";
+  import type { LayoutData } from "./$types";
 
-  let { children } = $props();
+  // Static map keeps the translation keys literal (and therefore type-checked)
+  // even though we iterate over LOCALES to render the toggle.
+  const localeKey: Record<Locale, MessageKey> = {
+    en: "nav.locale.en",
+    de: "nav.locale.de"
+  };
+
+  let { children, data }: { children: import("svelte").Snippet; data: LayoutData } = $props();
+
+  // Provide the reactive i18n context from the server-resolved locale + catalog.
+  // Done once at the root so every descendant can call `getI18n().t(...)`. The
+  // handle is reactive: rather than re-providing a fresh context, we push the new
+  // locale into the same handle below whenever `data` changes (after the toggle
+  // invalidates the loads), so every `t(...)` consumer — including child route
+  // components — re-renders in place. `setI18n` runs during init so the context
+  // exists before children mount (and stays request-scoped on the server). The
+  // initial value seeds the SSR render (effects do not run on the server); the
+  // effect below keeps it current on the client, so we read `data` untracked here.
+  const i18n = untrack(() => setI18n(data.locale, data.messages));
+
+  // Keep the handle in sync with the load data. On the server this runs once with
+  // the SSR-resolved locale; on the client it re-runs after the toggle's
+  // `invalidateAll()` swaps `data`, switching the whole chrome without a reload.
+  $effect(() => {
+    i18n.update(data.locale, data.messages);
+  });
+
+  // Re-apply `<html lang>` on a client-side locale change. SSR sets it via the
+  // `transformPageChunk` placeholder for the first paint; that placeholder is not
+  // touched again on an in-place toggle or client navigation, so we mirror the
+  // active locale onto the document element here for assistive tech.
+  $effect(() => {
+    document.documentElement.lang = i18n.locale;
+  });
+
+  const t = $derived(i18n.t);
 
   const home = resolve("/");
+  const impressum = resolve("/impressum");
+  const datenschutz = resolve("/datenschutz");
+
+  // Year for the footer copyright line. Computed once at module init; a public
+  // read-only portal does not need it to roll over mid-session.
+  const year = new Date().getUTCFullYear();
 </script>
 
 <div
   class="flex min-h-screen flex-col bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100"
 >
-  <!-- Portal header. Kept text-only and English for now; the labels are isolated
-       so Phase-5 i18n can swap them without restructuring the shell. -->
-  <header class="bg-primary-800 text-white shadow">
-    <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-      <a href={home} class="flex items-center gap-2 text-lg font-semibold tracking-tight">
-        <i class="bx bx-shield-quarter text-2xl" aria-hidden="true"></i>
-        SecurityPortal
+  <header class="border-b border-primary-900/40 bg-primary-800 text-white shadow-sm">
+    <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
+      <a
+        href={home}
+        class="flex items-center gap-3 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      >
+        <i class="bx bx-shield-quarter text-3xl text-primary-200" aria-hidden="true"></i>
+        <span class="flex flex-col leading-tight">
+          <span class="text-lg font-semibold tracking-tight">{t("nav.brand")}</span>
+          <span class="hidden text-xs font-normal text-primary-200 sm:block">
+            {t("nav.subtitle")}
+          </span>
+        </span>
       </a>
-      <nav aria-label="Primary">
-        <a href={home} class="rounded px-3 py-1 text-sm font-medium hover:bg-primary-700">
-          Advisories
-        </a>
-      </nav>
+      <div class="flex items-center gap-4">
+        <nav aria-label={t("nav.primaryLabel")}>
+          <a
+            href={home}
+            class="rounded px-3 py-1.5 text-sm font-medium hover:bg-primary-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            {t("nav.advisories")}
+          </a>
+        </nav>
+        <!-- Locale toggle. Setting the cookie + invalidateAll() keeps the server
+             (SSR) and client in agreement; localStorage alone would not. -->
+        <div
+          class="flex items-center gap-1 rounded border border-primary-600 p-0.5"
+          role="group"
+          aria-label={t("nav.localeLabel")}
+        >
+          {#each LOCALES as locale (locale)}
+            <button
+              type="button"
+              class="rounded px-2 py-1 text-xs font-semibold uppercase focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white {data.locale ===
+              locale
+                ? 'bg-white text-primary-800'
+                : 'text-primary-100 hover:bg-primary-700'}"
+              aria-pressed={data.locale === locale}
+              onclick={() => setLocale(locale)}
+            >
+              {t(localeKey[locale])}
+            </button>
+          {/each}
+        </div>
+      </div>
     </div>
   </header>
 
@@ -47,6 +125,25 @@
   <footer
     class="border-t border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-gray-800"
   >
-    <div class="mx-auto max-w-7xl px-4 py-4 text-xs">Public CSAF 2.0 security advisory portal.</div>
+    <div
+      class="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-xs sm:flex-row sm:items-center sm:justify-between"
+    >
+      <p>{t("footer.tagline")}</p>
+      <nav class="flex items-center gap-4" aria-label={t("footer.legalLabel")}>
+        <a
+          href={impressum}
+          class="hover:text-primary-700 hover:underline dark:hover:text-primary-400"
+        >
+          {t("footer.impressum")}
+        </a>
+        <a
+          href={datenschutz}
+          class="hover:text-primary-700 hover:underline dark:hover:text-primary-400"
+        >
+          {t("footer.datenschutz")}
+        </a>
+        <span class="text-gray-400 dark:text-gray-500">{t("footer.copyright", { year })}</span>
+      </nav>
+    </div>
   </footer>
 </div>

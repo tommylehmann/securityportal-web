@@ -10,9 +10,13 @@ import type { AdvisoryList, Facets, ListQuery } from "$lib/api/types";
 import type { PageServerLoad } from "./$types";
 
 // Result of the home load: the list plus the facet counts for the WID sidebar,
-// or a typed error message. The error is surfaced so the page can render an
+// or a typed error detail. The error is surfaced so the page can render an
 // explicit error state instead of a generic SvelteKit error overlay (the API
 // being down is an expected, recoverable condition for a public portal).
+//
+// `error` carries only the upstream API detail (e.g. the DB error text); the
+// user-facing framing ("Unable to load advisories") is localized in the page so
+// the chrome stays bilingual. It is null when the load succeeded.
 export interface HomeData {
   query: ListQuery;
   list: AdvisoryList | null;
@@ -37,10 +41,8 @@ export const load: PageServerLoad<HomeData> = async ({ fetch, url }) => {
     ]);
     return { query, list, facets, error: null };
   } catch (err) {
-    const message =
-      err instanceof ApiError
-        ? `Could not load advisories: ${err.message}`
-        : "Could not load advisories: unexpected error";
-    return { query, list: null, facets: null, error: message };
+    // Surface only the upstream detail; the page wraps it with localized framing.
+    const detail = err instanceof ApiError ? err.message : "unexpected error";
+    return { query, list: null, facets: null, error: detail };
   }
 };

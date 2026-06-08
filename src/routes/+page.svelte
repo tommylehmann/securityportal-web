@@ -16,9 +16,13 @@
   import { formatDate } from "$lib/format";
   import SeverityBadge from "$lib/components/SeverityBadge.svelte";
   import FilterSidebar from "$lib/components/FilterSidebar.svelte";
+  import { getI18n } from "$lib/i18n/context.svelte";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
+
+  const i18n = getI18n();
+  const { t } = i18n;
 
   const query = $derived(data.query);
   const list = $derived(data.list);
@@ -71,18 +75,30 @@
     if (query.sort !== column) return "";
     return query.direction === "desc" ? "↓" : "↑";
   }
+
+  // Maps the active sort onto the `aria-sort` token a sortable column header
+  // carries. The sortable headers give the `th` its own `aria-label` (the column
+  // label) so the columnheader is identifiable by its localized text, while the
+  // inner button keeps a distinct "sort by ..." `aria-label` for the action.
+  function ariaSort(column: SortColumn): "ascending" | "descending" | "none" {
+    if (query.sort !== column) return "none";
+    return query.direction === "desc" ? "descending" : "ascending";
+  }
 </script>
 
 <svelte:head>
-  <title>Advisories — SecurityPortal</title>
+  <title>{t("home.headTitle")}</title>
 </svelte:head>
 
 <div class="lg:grid lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-6">
-  <!-- Left filter sidebar (WID three-region layout). A drawer below lg, a fixed
-       left column from lg up. -->
-  <aside class="lg:block {sidebarOpen ? 'block' : 'hidden'}">
+  <!-- Left filter sidebar (WID three-region layout). A drawer below lg, a sticky
+       left column from lg up so the facets stay in view while the list scrolls. -->
+  <aside
+    class="lg:block lg:self-start lg:sticky lg:top-6 {sidebarOpen ? 'block' : 'hidden'}"
+    aria-label={t("filter.heading")}
+  >
     <div
-      class="rounded-md border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+      class="rounded-md border border-gray-200 bg-white p-4 shadow-sm lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto dark:border-gray-700 dark:bg-gray-800"
     >
       <FilterSidebar filters={query.filters} {facets} onChange={applyFilters} />
     </div>
@@ -91,9 +107,9 @@
   <section class="mt-4 lg:mt-0">
     <div class="flex items-start justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Security advisories</h1>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{t("home.title")}</h1>
         <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          CSAF 2.0 advisories published by our Trusted Provider.
+          {t("home.subtitle")}
         </p>
       </div>
       <button
@@ -103,25 +119,28 @@
         onclick={() => (sidebarOpen = !sidebarOpen)}
       >
         <i class="bx bx-filter-alt" aria-hidden="true"></i>
-        Filters
+        {t("home.filtersButton")}
       </button>
     </div>
 
     {#if list}
       <p class="mt-2 text-sm font-medium text-gray-600 dark:text-gray-400">
-        {list.total}
-        {list.total === 1 ? "advisory" : "advisories"}
+        {list.total === 1
+          ? t("home.count.one", { count: list.total })
+          : t("home.count.other", { count: list.total })}
       </p>
     {/if}
 
     {#if data.error}
-      <!-- Error state: the API was unreachable or returned an error. -->
+      <!-- Error state: the API was unreachable or returned an error. The framing
+           is localized; the upstream detail (data.error) is appended verbatim. -->
       <div
         class="mt-6 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-700 dark:bg-red-950 dark:text-red-200"
         role="alert"
       >
-        <p class="font-semibold">Unable to load advisories</p>
-        <p class="mt-1">{data.error}</p>
+        <p class="font-semibold">{t("home.error.title")}</p>
+        <p class="mt-1">{t("home.error.intro")}</p>
+        <p class="mt-1 font-mono text-xs opacity-80">{data.error}</p>
       </div>
     {:else if advisories.length === 0}
       <!-- Empty state: the API responded but there are no advisories to show. -->
@@ -129,46 +148,66 @@
         class="mt-6 rounded-md border border-gray-200 bg-white p-8 text-center text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
       >
         <i class="bx bx-folder-open text-3xl" aria-hidden="true"></i>
-        <p class="mt-2 text-sm">No advisories found.</p>
+        <p class="mt-2 text-sm font-medium">{t("home.empty")}</p>
+        <p class="mt-1 text-xs">{t("home.empty.hint")}</p>
       </div>
     {:else}
-      <div class="mt-4 overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
-        <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+      <div
+        class="mt-4 overflow-x-auto rounded-md border border-gray-200 shadow-sm dark:border-gray-700"
+      >
+        <table
+          class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700"
+          aria-label={t("list.tableLabel")}
+        >
           <thead
             class="bg-gray-100 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:bg-gray-800 dark:text-gray-300"
           >
             <tr>
-              <th scope="col" class="px-3 py-2">
+              <th
+                scope="col"
+                class="px-3 py-2"
+                aria-sort={ariaSort("critical")}
+                aria-label={t("list.column.severity")}
+              >
                 <button
                   type="button"
                   class="inline-flex items-center gap-1 hover:text-primary-700"
                   onclick={() => sortBy("critical")}
-                  aria-label="Sort by severity"
+                  aria-label={t("list.sortBySeverity")}
                 >
-                  Severity <span aria-hidden="true">{sortIndicator("critical")}</span>
+                  {t("list.column.severity")}
+                  <span aria-hidden="true">{sortIndicator("critical")}</span>
                 </button>
               </th>
-              <th scope="col" class="px-3 py-2">Title</th>
-              <th scope="col" class="px-3 py-2">CVE(s)</th>
-              <th scope="col" class="px-3 py-2">Publisher</th>
-              <th scope="col" class="px-3 py-2">
+              <th scope="col" class="px-3 py-2">{t("list.column.title")}</th>
+              <th scope="col" class="px-3 py-2">{t("list.column.cves")}</th>
+              <th scope="col" class="px-3 py-2">{t("list.column.publisher")}</th>
+              <th
+                scope="col"
+                class="px-3 py-2"
+                aria-sort={ariaSort("current_release_date")}
+                aria-label={t("list.column.released")}
+              >
                 <button
                   type="button"
                   class="inline-flex items-center gap-1 hover:text-primary-700"
                   onclick={() => sortBy("current_release_date")}
-                  aria-label="Sort by release date"
+                  aria-label={t("list.sortByReleased")}
                 >
-                  Released <span aria-hidden="true">{sortIndicator("current_release_date")}</span>
+                  {t("list.column.released")}
+                  <span aria-hidden="true">{sortIndicator("current_release_date")}</span>
                 </button>
               </th>
-              <th scope="col" class="px-3 py-2">TLP</th>
-              <th scope="col" class="px-3 py-2">Category</th>
-              <th scope="col" class="px-3 py-2">Lang</th>
+              <th scope="col" class="px-3 py-2">{t("list.column.tlp")}</th>
+              <th scope="col" class="px-3 py-2">{t("list.column.category")}</th>
+              <th scope="col" class="px-3 py-2">{t("list.column.lang")}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
             {#each advisories as advisory (advisory.id)}
-              <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+              <tr
+                class="odd:bg-white even:bg-gray-50/60 hover:bg-primary-50/60 dark:odd:bg-gray-900 dark:even:bg-gray-800/40 dark:hover:bg-gray-800"
+              >
                 <td class="px-3 py-2 align-top whitespace-nowrap">
                   <SeverityBadge severity={severityOf(advisory)} score={advisory.critical} />
                 </td>
@@ -196,7 +235,7 @@
                   {advisory.publisher_name ?? "—"}
                 </td>
                 <td class="px-3 py-2 align-top whitespace-nowrap text-gray-700 dark:text-gray-300">
-                  {formatDate(advisory.current_release_date)}
+                  {formatDate(advisory.current_release_date, i18n.locale)}
                 </td>
                 <td class="px-3 py-2 align-top whitespace-nowrap text-gray-700 dark:text-gray-300">
                   {advisory.tlp ?? "—"}
@@ -216,7 +255,11 @@
       <!-- Pagination footer. -->
       <div class="mt-3 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
         <span>
-          Showing {rangeStart}–{rangeEnd} of {list?.total ?? 0}
+          {t("pagination.showing", {
+            start: rangeStart,
+            end: rangeEnd,
+            total: list?.total ?? 0
+          })}
         </span>
         <div class="flex gap-2">
           <button
@@ -225,7 +268,7 @@
             onclick={goPrev}
             disabled={!hasPrev}
           >
-            Previous
+            {t("pagination.previous")}
           </button>
           <button
             type="button"
@@ -233,7 +276,7 @@
             onclick={goNext}
             disabled={!hasNext}
           >
-            Next
+            {t("pagination.next")}
           </button>
         </div>
       </div>

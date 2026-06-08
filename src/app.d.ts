@@ -7,10 +7,15 @@
 
 // See https://kit.svelte.dev/docs/types#app
 // for information about these interfaces
+import type { Locale } from "$lib/i18n";
+
 declare global {
   namespace App {
     // interface Error {}
-    // interface Locals {}
+    interface Locals {
+      /** UI locale resolved in hooks.server.ts (cookie → Accept-Language). */
+      locale: Locale;
+    }
     // interface PageData {}
     // interface PageState {}
     // interface Platform {}

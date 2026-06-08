@@ -9,6 +9,8 @@
 
 <script lang="ts">
   import type { Severity } from "$lib/api/types";
+  import { getI18n } from "$lib/i18n/context.svelte";
+  import { severityLabelKey } from "$lib/i18n/labels";
 
   interface Props {
     severity: Severity;
@@ -16,6 +18,9 @@
     score?: number | null;
   }
   let { severity, score = null }: Props = $props();
+
+  const { t } = getI18n();
+  const label = $derived(t(severityLabelKey(severity)));
 
   // Colour tokens per CSAF/CVSS bucket. Distinct, high-contrast hues so the
   // severity reads at a glance in the result list (spec §13).
@@ -26,23 +31,15 @@
     high: "bg-orange-100 text-orange-800 ring-orange-300 dark:bg-orange-900 dark:text-orange-200",
     critical: "bg-red-100 text-red-800 ring-red-300 dark:bg-red-900 dark:text-red-200"
   };
-
-  const labels: Record<Severity, string> = {
-    none: "None",
-    low: "Low",
-    medium: "Medium",
-    high: "High",
-    critical: "Critical"
-  };
 </script>
 
 <span
   class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset {styles[
     severity
   ]}"
-  title={score !== null ? `CVSS ${score.toFixed(1)}` : labels[severity]}
+  title={score !== null ? `CVSS ${score.toFixed(1)}` : label}
 >
-  {labels[severity]}
+  {label}
   {#if score !== null && score > 0}
     <span class="font-normal tabular-nums">{score.toFixed(1)}</span>
   {/if}

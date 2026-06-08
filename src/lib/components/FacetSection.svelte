@@ -11,7 +11,7 @@
   import type { Snippet } from "svelte";
 
   interface Props {
-    /** Section heading (English copy for now; isolated for Phase-5 i18n). */
+    /** Section heading (already-localized text supplied by the caller). */
     title: string;
     /** Whether the section starts expanded. */
     open?: boolean;
