@@ -19,6 +19,7 @@
   import { LOCALES, type Locale, type MessageKey } from "$lib/i18n";
   import { setI18n } from "$lib/i18n/context.svelte";
   import { setLocale } from "$lib/i18n/client";
+  import type { ThemeColors } from "$lib/server/runtime-config";
   import type { LayoutData } from "./$types";
 
   // Static map keeps the translation keys literal (and therefore type-checked)
@@ -58,6 +59,51 @@
 
   const t = $derived(i18n.t);
 
+  // Brand name and subtitle: operator override wins; i18n fallback ensures the
+  // portal has sensible defaults when no env is set.
+  const brandName = $derived(data.branding.brandName ?? t("nav.brand"));
+  const brandSubtitle = $derived(data.branding.subtitle ?? t("nav.subtitle"));
+
+  // Build inline CSS custom property overrides for the runtime theme (ADR-0009).
+  //
+  // We set the --sp-primary-* channel variables on the root <div> rather than
+  // injecting a <style> block, because vitePreprocess treats <svelte:head>
+  // content as CSS and rejects non-CSS syntax.  Setting the vars directly on
+  // the element's style attribute scopes them to the subtree (which is the
+  // full page) and keeps the same cascade effect as a :root override.
+  //
+  // Safety (SA-22):
+  //   All channel values come from runtime-config.ts parseColor(), which
+  //   accepts ONLY #rrggbb hex or "R G B" decimal triples and normalises to
+  //   "R G B" form.  Decimal-only strings cannot break out of a CSS property
+  //   value context.  The CHANNEL_TRIPLE_RE and HEX_COLOR_RE patterns reject
+  //   any value containing semicolons, braces, quotes, or angle brackets, so
+  //   CSS injection through this path is not possible.
+  //
+  // The operator-supplied values are validated before they ever reach this
+  // derivation; if validation fails, branding.theme is undefined and no style
+  // attribute is emitted (defaults from app.css remain in force).
+  function buildThemeVars(theme: ThemeColors | undefined): string {
+    if (!theme) return "";
+    const parts = [
+      `--sp-primary-50:${theme.primary50}`,
+      `--sp-primary-100:${theme.primary100}`,
+      `--sp-primary-200:${theme.primary200}`,
+      `--sp-primary-300:${theme.primary300}`,
+      `--sp-primary-400:${theme.primary400}`,
+      `--sp-primary-500:${theme.primary500}`,
+      `--sp-primary-600:${theme.primary600}`,
+      `--sp-primary-700:${theme.primary700}`,
+      `--sp-primary-800:${theme.primary800}`,
+      `--sp-primary-900:${theme.primary900}`
+    ];
+    if (theme.accent) parts.push(`--sp-accent:${theme.accent}`);
+    if (theme.primaryFg) parts.push(`--sp-primary-fg:${theme.primaryFg}`);
+    return parts.join(";");
+  }
+
+  const themeVars = $derived(buildThemeVars(data.branding.theme));
+
   const home = resolve("/");
   const impressum = resolve("/impressum");
   const datenschutz = resolve("/datenschutz");
@@ -67,8 +113,17 @@
   const year = new Date().getUTCFullYear();
 </script>
 
+<!--
+  Runtime theme override applied as inline CSS custom properties on the root
+  element (ADR-0009, SA-22).  The style attribute is populated only when the
+  operator has configured SECURITYPORTAL_THEME_PRIMARY; otherwise the
+  attribute is absent and app.css channel defaults are in force.
+  All values are validated decimal channel strings — safe as CSS property
+  values (no injection vector).
+-->
 <div
   class="flex min-h-screen flex-col bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100"
+  style={themeVars || undefined}
 >
   <header class="border-b border-primary-900/40 bg-primary-800 text-white shadow-sm">
     <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
@@ -76,11 +131,18 @@
         href={home}
         class="flex items-center gap-3 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
-        <i class="bx bx-shield-quarter text-3xl text-primary-200" aria-hidden="true"></i>
+        {#if data.branding.logoConfigured}
+          <!-- Operator-mounted logo served from same-origin /branding/logo.
+               CSP img-src 'self' data: is unchanged (SA-25).  SVG is
+               served via <img> which neutralises inline scripts. -->
+          <img src="/branding/logo" alt={brandName} class="h-8 w-auto" />
+        {:else}
+          <i class="bx bx-shield-quarter text-3xl text-primary-200" aria-hidden="true"></i>
+        {/if}
         <span class="flex flex-col leading-tight">
-          <span class="text-lg font-semibold tracking-tight">{t("nav.brand")}</span>
+          <span class="text-lg font-semibold tracking-tight">{brandName}</span>
           <span class="hidden text-xs font-normal text-primary-200 sm:block">
-            {t("nav.subtitle")}
+            {brandSubtitle}
           </span>
         </span>
       </a>

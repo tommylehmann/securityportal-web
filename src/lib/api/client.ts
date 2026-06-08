@@ -18,13 +18,17 @@ import type {
 } from "$lib/api/types";
 import { SEVERITY_BANDS } from "$lib/api/types";
 
-// Base URL of the securityportal-api. Configurable via PUBLIC_API_BASE_URL so a
-// deployment can point the web app at its API origin. The default is empty: the
-// client then issues same-origin relative requests to `/api/...`, which the Vite
-// dev server proxies (vite.config.ts) and a reverse proxy handles in production.
-// We always prefer fetching from SvelteKit `load` functions (server-side), so
-// there is no browser CORS dependency on the API in the normal flow.
-const API_BASE_URL = (env.PUBLIC_API_BASE_URL ?? "").replace(/\/+$/, "");
+// Base URL for browser-side requests (or SSR when no internal URL is set).
+//
+// Resolution precedence (client / browser):
+//   1. PUBLIC_API_BASE_URL — explicit cross-origin base (non-proxy deploys).
+//   2. "" — same-origin relative `/api/...`; default for Compose + dev.
+//
+// For SSR in Compose the server load functions pass a `base` option derived from
+// SECURITYPORTAL_API_INTERNAL_URL (read in $lib/server/api-base.ts, which imports
+// $env/dynamic/private — a server-only module that MUST NOT be imported here so
+// this module stays safe to bundle for the browser).
+const BROWSER_API_BASE = (env.PUBLIC_API_BASE_URL ?? "").replace(/\/+$/, "");
 
 /** The whitelist of columns the list endpoint accepts, used to validate input. */
 const SORT_COLUMNS: readonly SortColumn[] = ["current_release_date", "critical"];
@@ -98,12 +102,28 @@ export class ApiError extends Error {
 type FetchFn = typeof fetch;
 
 /**
+ * Options accepted by the public fetch helpers.
+ *
+ * `base` overrides the module-level BROWSER_API_BASE.  Server `load` functions
+ * set this to the value returned by $lib/server/api-base:serverApiBase() so
+ * SSR fetches go directly to the internal API address (e.g. http://api:8081)
+ * rather than looping through Caddy or relying on a same-origin relative URL
+ * that the Node server cannot resolve.
+ */
+export interface FetchOpts {
+  base?: string;
+}
+
+/**
  * Performs a GET against the API and decodes JSON, mapping non-2xx onto an
  * ApiError. `fetchFn` should be the request-scoped `fetch` passed from a
  * SvelteKit `load` so SSR and request context (cookies, base) are respected.
  */
-async function getJSON<T>(fetchFn: FetchFn, path: string): Promise<T> {
-  const url = `${API_BASE_URL}${path}`;
+async function getJSON<T>(fetchFn: FetchFn, path: string, base?: string): Promise<T> {
+  // Use the caller-supplied base (SSR internal URL) when present; fall back to
+  // the browser public base (PUBLIC_API_BASE_URL or same-origin empty string).
+  const resolvedBase = base !== undefined ? base : BROWSER_API_BASE;
+  const url = `${resolvedBase}${path}`;
 
   let response: Response;
   try {
@@ -173,41 +193,64 @@ function appendFilterParams(params: URLSearchParams, filters: Filters): void {
  * Fetches a page of the advisory list. Pagination, sort, and all active filters
  * come from a validated ListQuery; the API clamps `limit` to its own maximum
  * regardless.
+ *
+ * Server `load` functions should pass `{ base: serverApiBase() }` so SSR
+ * fetches go directly to the internal API address (task 33 / ADR-0011).
  */
-export async function fetchAdvisories(fetchFn: FetchFn, query: ListQuery): Promise<AdvisoryList> {
+export async function fetchAdvisories(
+  fetchFn: FetchFn,
+  query: ListQuery,
+  opts: FetchOpts = {}
+): Promise<AdvisoryList> {
   const params = new URLSearchParams({
     limit: String(query.limit),
     offset: String(query.offset),
     sort: sortParam(query)
   });
   appendFilterParams(params, query.filters);
-  return getJSON<AdvisoryList>(fetchFn, `/api/advisories?${params.toString()}`);
+  return getJSON<AdvisoryList>(fetchFn, `/api/advisories?${params.toString()}`, opts.base);
 }
 
 /**
  * Fetches the facet counts for the current filter state (drill-down): the same
  * filters as the list, minus pagination/sort, so each dimension's counts match
  * the narrowed result set the list shows.
+ *
+ * Server `load` functions should pass `{ base: serverApiBase() }`.
  */
-export async function fetchFacets(fetchFn: FetchFn, filters: Filters): Promise<Facets> {
+export async function fetchFacets(
+  fetchFn: FetchFn,
+  filters: Filters,
+  opts: FetchOpts = {}
+): Promise<Facets> {
   const params = new URLSearchParams();
   appendFilterParams(params, filters);
   const query = params.toString();
-  return getJSON<Facets>(fetchFn, query ? `/api/facets?${query}` : "/api/facets");
+  return getJSON<Facets>(fetchFn, query ? `/api/facets?${query}` : "/api/facets", opts.base);
 }
 
 /**
  * Fetches the stored CSAF JSON for one document revision, verbatim. The shape is
  * an arbitrary CSAF document; the caller feeds it to `convertToDocModel`. A
  * missing/non-publishable id surfaces as an ApiError with status 404.
+ *
+ * Server `load` functions should pass `{ base: serverApiBase() }`.
  */
-export async function fetchDocument(fetchFn: FetchFn, id: number): Promise<unknown> {
-  return getJSON<unknown>(fetchFn, `/api/documents/${encodeURIComponent(String(id))}`);
+export async function fetchDocument(
+  fetchFn: FetchFn,
+  id: number,
+  opts: FetchOpts = {}
+): Promise<unknown> {
+  return getJSON<unknown>(fetchFn, `/api/documents/${encodeURIComponent(String(id))}`, opts.base);
 }
 
-/** Fetches API health (DB reachability + last ingest time). */
-export async function fetchHealth(fetchFn: FetchFn): Promise<Health> {
-  return getJSON<Health>(fetchFn, "/api/health");
+/**
+ * Fetches API health (DB reachability + last ingest time).
+ *
+ * Server `load` functions should pass `{ base: serverApiBase() }`.
+ */
+export async function fetchHealth(fetchFn: FetchFn, opts: FetchOpts = {}): Promise<Health> {
+  return getJSON<Health>(fetchFn, "/api/health", opts.base);
 }
 
 /**

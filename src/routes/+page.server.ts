@@ -7,6 +7,7 @@
 
 import { ApiError, fetchAdvisories, fetchFacets, parseListQuery } from "$lib/api/client";
 import type { AdvisoryList, Facets, ListQuery } from "$lib/api/types";
+import { serverApiBase } from "$lib/server/api-base";
 import type { PageServerLoad } from "./$types";
 
 // Result of the home load: the list plus the facet counts for the WID sidebar,
@@ -33,11 +34,12 @@ export interface HomeData {
 // counts describe exactly the narrowed set the list shows (drill-down).
 export const load: PageServerLoad<HomeData> = async ({ fetch, url }) => {
   const query = parseListQuery(url.searchParams);
+  const base = serverApiBase();
 
   try {
     const [list, facets] = await Promise.all([
-      fetchAdvisories(fetch, query),
-      fetchFacets(fetch, query.filters)
+      fetchAdvisories(fetch, query, { base }),
+      fetchFacets(fetch, query.filters, { base })
     ]);
     return { query, list, facets, error: null };
   } catch (err) {

@@ -53,12 +53,69 @@ docker run -p 8080:8080 \
 
 ## Configuration
 
-### `PUBLIC_API_BASE_URL`
+### Runtime environment variables
 
-The base URL of the backend API. Read at **runtime** (via `$env/dynamic/public`), so you can change it between build and deployment (e.g., via Docker `.env`).
+All of these are read at **runtime** (not build time), so you can change them between build and deployment (e.g., via Docker `.env`).
 
-- **Empty (default):** use same-origin relative `/api/...` (suitable for a reverse proxy that routes both app and API).
-- **Absolute origin (e.g., `https://api.example.com`):** call the API cross-origin. The CSP (Content Security Policy) is extended dynamically in `hooks.server.ts` to allow `connect-src` to this origin.
+**Server-only variables** (read via `$env/dynamic/private`, never sent to browser):
+
+| Variable                          | Default                  | Description                                                                                                                                                                              |
+| --------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SECURITYPORTAL_BRAND_NAME`       | `"SecurityPortal"`       | Portal title (shown in header + alt text on logo). Text only, no HTML.                                                                                                                   |
+| `SECURITYPORTAL_BRAND_SUBTITLE`   | `"CSAF Advisory Portal"` | Subtitle shown in header. Text only.                                                                                                                                                     |
+| `SECURITYPORTAL_THEME_PRIMARY`    | `"#2563eb"`              | Primary brand color. Hex `#rrggbb` or RGB `R G B` (each 0–255).                                                                                                                          |
+| `SECURITYPORTAL_THEME_PRIMARY_FG` | unset                    | Foreground (text) color on primary bg. Hex or RGB. **v1 scope: unused (always light text).**                                                                                             |
+| `SECURITYPORTAL_THEME_ACCENT`     | unset                    | Accent color override. Hex or RGB. **v1 scope: unused (fixed per severity bands).**                                                                                                      |
+| `SECURITYPORTAL_LOGO_PATH`        | unset                    | Path to a logo file (SVG/PNG/WebP) served at `/branding/logo`. Must exist and be readable by the app process. When unset, a built-in shield glyph is shown.                              |
+| `SECURITYPORTAL_LEGAL_DIR`        | unset                    | Directory containing legal Markdown files (see below). When unset, impressum/datenschutz pages show placeholders.                                                                        |
+| `SECURITYPORTAL_API_INTERNAL_URL` | unset                    | **Compose/Kubernetes only:** internal address for SSR to reach the API (e.g., `http://api:8081`). When unset, SSR falls through to `PUBLIC_API_BASE_URL` or same-origin relative `/api`. |
+
+**Browser-accessible variables** (read via `$env/dynamic/public`):
+
+| Variable              | Default            | Description                                                                                                                                                                                                                                                 |
+| --------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PUBLIC_API_BASE_URL` | `""` (same-origin) | Backend API base URL. Empty (default) = same-origin relative `/api/...` (suitable for a reverse proxy routing `/api` to the API). Absolute origin (e.g., `https://api.example.com`) = call the API cross-origin; CSP `connect-src` is extended to allow it. |
+
+### Branding and theming (Phase 7)
+
+The portal supports runtime rebranding without rebuilding the container:
+
+- **Brand name/subtitle:** set `SECURITYPORTAL_BRAND_NAME` and `SECURITYPORTAL_BRAND_SUBTITLE` to display custom text in the header.
+- **Primary color:** `SECURITYPORTAL_THEME_PRIMARY` accepts hex (`#rrggbb`) or RGB decimal (`R G B`). A linear ramp is generated for the Tailwind `primary-*` scale. Colors are validated server-side (SA-22); invalid values are logged and ignored (defaults apply).
+- **Logo:** `SECURITYPORTAL_LOGO_PATH` points to a file (SVG, PNG, or WebP) served at `/branding/logo`. The path is fixed at process start and never joined with request input (SA-20). Content-Type is allow-listed by extension; read errors silently return 404 (no path disclosure, SA-14).
+- **Mounted files:** in Docker Compose or Kubernetes, bind-mount the logo file or legal directory into the container and set the path to where it will exist inside the container (e.g., `/config/logo.png` if mounted at `/config`).
+
+### Legal content (Markdown + sanitized HTML, Phase 7)
+
+The web app reads **Markdown-formatted** legal documents from `SECURITYPORTAL_LEGAL_DIR`:
+
+**File layout:** `${SECURITYPORTAL_LEGAL_DIR}/<page>.<locale>.md`
+
+- **Pages:** `impressum` (company/contact info), `datenschutz` (privacy policy)
+- **Locales:** `de` (German), `en` (English)
+- **Examples:** `impressum.de.md`, `datenschutz.en.md`
+
+**Content rendering (ADR-0010):**
+
+1. Operator writes Markdown (block text, lists, tables, safe links, emphasis).
+2. At request time, the Markdown is rendered to HTML.
+3. HTML is sanitized to a fixed allow-list:
+   - **Allowed tags:** `p h1–h4 ul ol li blockquote strong em code pre hr br table thead tbody tr th td a` (text flow + tables + anchors).
+   - **Allowed attributes:** `a[href rel target]`, `td/th[colspan rowspan]` (all others stripped).
+   - **Dropped entirely:** `script iframe object embed svg img` (never rendered, even as escaped text).
+   - **Link scheme allow-list:** `http https mailto` only (ADR-0007); `javascript:` and `data:` links are inert.
+   - **Anchor hardening:** every link gets `rel="noopener noreferrer"` and `target="_blank"`.
+4. Sanitized HTML is rendered via Svelte `{@html}` — the **only permitted `{@html}` in the app** (SA-6 carve-out, documented in code).
+
+**Fallback chain:**
+
+- If the file exists and is ≤ 512 KiB → render sanitized HTML.
+- Else try the other locale's file.
+- Else → show a placeholder with an amber "not completed" banner (never 500, never blank).
+
+**Size limit:** files over 512 KiB are rejected and fall back to the placeholder.
+
+**Operators:** to complete the legal pages, create `impressum.de.md` / `impressum.en.md` and `datenschutz.de.md` / `datenschutz.en.md` in the mounted directory with your legal text. Markdown syntax is supported; HTML tags are escaped to prevent injection.
 
 ### Locale
 
@@ -339,6 +396,16 @@ Requires Chromium (Playwright installs it). Tests:
 - 404 handling
 
 Tests use a mock API (deterministic, in-process) so no real backend is needed. See `tests/` for the suite.
+
+## Deployment options
+
+SecurityPortal supports three deployment targets with identical runtime config and security properties:
+
+1. **Docker Compose** (batteries-included) — `securityportal-api/docs/DEPLOYMENT.md`. Bundled Caddy reverse proxy, all services in containers, local self-signed or ACME/BYO TLS.
+2. **Kubernetes Helm chart** — `deploy/helm/securityportal/` in the main repository. Deployments + Services, Ingress for TLS, optional bundled PostgreSQL, ConfigMap/Secret for config.
+3. **Bare-metal / hand-rolled** — `securityportal-api/docs/DEPLOYMENT-BAREMETAL.md`. Go binary + Node.js under systemd, external Postgres, operator-provided reverse proxy (nginx/Caddy examples included).
+
+All three share the same `SECURITYPORTAL_*` environment variables and security-header ownership model (app owns CSP, proxy owns HSTS/TLS). Choose the target that fits your infrastructure.
 
 ## Deployment checklist
 

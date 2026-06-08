@@ -13,17 +13,58 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * Runtime-themeable primary palette (ADR-0009, spec §16.3).
+ *
+ * Tailwind 4 utilities emit `background-color: var(--color-primary-NNN)`.
+ * We define those variables as `rgb(var(--sp-primary-NNN))` so that at SSR
+ * +layout.svelte can override just the `--sp-primary-*` channel strings (e.g.
+ * "7 89 133") without touching the utility classes themselves.
+ *
+ * The `--sp-primary-*` variables hold R G B channel values (space-separated
+ * decimals, no commas) validated server-side before reaching this sink
+ * (SA-22).  They are the sole runtime-overridable knob; `--color-primary-*`
+ * is always expressed through them.
+ *
+ * Default channel values correspond byte-for-byte to the sky-600 ramp that
+ * was previously hard-coded in the @theme block:
+ *
+ *   50  #f0f9ff → 240 249 255   100 #e0f2fe → 224 242 254
+ *   200 #bae6fd → 186 230 253   300 #7dd3fc → 125 211 252
+ *   400 #38bdf8 → 56 189 248    500 #0ea5e9 → 14 165 233
+ *   600 #0284c7 → 2 132 199     700 #0369a1 → 3 105 161
+ *   800 #075985 → 7 89 133      900 #082f49 → 8 47 73
+ */
+:root {
+  --sp-primary-50: 240 249 255;
+  --sp-primary-100: 224 242 254;
+  --sp-primary-200: 186 230 253;
+  --sp-primary-300: 125 211 252;
+  --sp-primary-400: 56 189 248;
+  --sp-primary-500: 14 165 233;
+  --sp-primary-600: 2 132 199;
+  --sp-primary-700: 3 105 161;
+  --sp-primary-800: 7 89 133;
+  --sp-primary-900: 8 47 73;
+}
+
+/*
+ * Map Tailwind's --color-primary-* onto the runtime-overridable channel vars.
+ * `rgb(var(--sp-primary-NNN))` is a valid CSS color value understood by
+ * color-mix(), so opacity modifiers (e.g. bg-primary-900/40) continue to
+ * work.
+ */
 @theme {
-  --color-primary-50: #f0f9ff;
-  --color-primary-100: #e0f2fe;
-  --color-primary-200: #bae6fd;
-  --color-primary-300: #7dd3fc;
-  --color-primary-400: #38bdf8;
-  --color-primary-500: #0ea5e9;
-  --color-primary-600: #0284c7;
-  --color-primary-700: #0369a1;
-  --color-primary-800: #075985;
-  --color-primary-900: #082f49;
+  --color-primary-50: rgb(var(--sp-primary-50));
+  --color-primary-100: rgb(var(--sp-primary-100));
+  --color-primary-200: rgb(var(--sp-primary-200));
+  --color-primary-300: rgb(var(--sp-primary-300));
+  --color-primary-400: rgb(var(--sp-primary-400));
+  --color-primary-500: rgb(var(--sp-primary-500));
+  --color-primary-600: rgb(var(--sp-primary-600));
+  --color-primary-700: rgb(var(--sp-primary-700));
+  --color-primary-800: rgb(var(--sp-primary-800));
+  --color-primary-900: rgb(var(--sp-primary-900));
 }
 
 @source "../node_modules/flowbite-svelte/dist";

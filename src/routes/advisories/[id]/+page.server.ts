@@ -8,6 +8,7 @@
 import { error } from "@sveltejs/kit";
 import { ApiError, fetchDocument } from "$lib/api/client";
 import { extractMetadata, type AdvisoryMetadata } from "$lib/csaf/metadata";
+import { serverApiBase } from "$lib/server/api-base";
 import type { PageServerLoad } from "./$types";
 
 // Detail load: fetches the verbatim CSAF JSON for one document revision on the
@@ -42,7 +43,7 @@ export const load: PageServerLoad<DetailData> = async ({ fetch, params }) => {
   }
 
   try {
-    const document = await fetchDocument(fetch, id);
+    const document = await fetchDocument(fetch, id, { base: serverApiBase() });
     return { id, document, metadata: extractMetadata(document) };
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
