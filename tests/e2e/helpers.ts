@@ -12,7 +12,7 @@ import type { APIRequestContext } from "@playwright/test";
 // test flip the mock's scenario or inspect what query the app actually sent.
 const MOCK_API = "http://127.0.0.1:8099";
 
-export type Scenario = "ok" | "empty" | "error" | "facets" | "capped";
+export type Scenario = "ok" | "empty" | "error" | "facets" | "capped" | "null_publisher";
 
 /** Sets the mock's response scenario for subsequent /api/advisories calls. */
 export async function setScenario(request: APIRequestContext, scenario: Scenario): Promise<void> {

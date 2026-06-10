@@ -13,9 +13,18 @@
 //
 // Scenario control: the suite drives behaviour by POSTing to /__mock/scenario
 // before navigating. State is process-global (one app server, one mock server),
-// so tests that change a scenario reset it in their own setup. The two CSAF render
+// so tests that change a scenario reset it in their own setup. The CSAF render
 // fixtures are read straight from src/lib/CSAFWebview/__fixtures__/ so the e2e
 // suite and the implementer's render path share the same documents.
+//
+// Advisory permalink routing (ADR-0016):
+//   GET /api/advisories/:publisher/:trackingid
+//     → 200 CSAF JSON for a live advisory
+//     → 410 + WithdrawnEnvelope for a tombstoned advisory
+//     → 404 for an unknown (publisher, trackingId) pair
+//
+// The :publisher segment is always a publisher collection; a single segment never
+// resolves to a document (the retired flat contract is not present here).
 
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -27,7 +36,7 @@ const fixturesDir = join(here, "..", "..", "src", "lib", "CSAFWebview", "__fixtu
 
 const deDoc = JSON.parse(readFileSync(join(fixturesDir, "de-2026-0001.json"), "utf8"));
 const enDoc = JSON.parse(readFileSync(join(fixturesDir, "en-bsi-2022-0001.json"), "utf8"));
-// Security-test fixture: references contain javascript: and data: payloads (id 3).
+// Security-test fixture: references contain javascript: and data: payloads.
 // Used by the href-scheme allow-list e2e specs (SA-8, task 22 / C-1).
 const maliciousHrefsDoc = JSON.parse(
   readFileSync(join(fixturesDir, "malicious-hrefs.json"), "utf8")
@@ -79,6 +88,29 @@ const ROWS = [
     products: ["CVRF-CSAF-Converter"]
   }
 ];
+
+// A row whose publisher_name is null, used exclusively by the "null_publisher"
+// scenario to exercise the list's "unlinked" title path (ADR-0016: null
+// publisher_name → plain text, no /advisories//{trackingId} URL emitted).
+const NULL_PUBLISHER_ROW = {
+  id: 6,
+  tracking_id: "ANON-2026-0001",
+  publisher_name: null,
+  title: "Anonymous advisory: no publisher",
+  current_release_date: "2026-01-01T00:00:00Z",
+  initial_release_date: "2026-01-01T00:00:00Z",
+  tlp: "WHITE",
+  category: "csaf_base",
+  critical: null,
+  cvss_v2_score: null,
+  cvss_v3_score: null,
+  lang: "en-US",
+  tracking_status: "final",
+  version: "1",
+  cves: [],
+  vendors: [],
+  products: []
+};
 
 // A richer, deterministic corpus exercised only by the filter/facet e2e suite
 // (selected via the "facets" scenario). It is a superset of the two canonical
@@ -173,15 +205,52 @@ const CAPPED_ROWS = Array.from({ length: 60 }, (_, i) => ({
   products: [`Product ${String(i).padStart(2, "0")}`]
 }));
 
+// Lookup by numeric surrogate id (internal /api/documents/:id endpoint).
 const DOCS = { 1: deDoc, 2: enDoc, 3: maliciousHrefsDoc };
 
+// Lookup for the publisher-scoped 2-segment permalink (ADR-0016).
+// Key: `${publisher}\x00${trackingId}` (null byte avoids false matches).
+// Each entry is either { doc } for a live advisory or { withdrawn } for a
+// tombstoned advisory that returns HTTP 410 + the WithdrawnEnvelope shape.
+//
+// Fixtures cover:
+//   - Live DE advisory: publisher contains a space ("Example AG"), tracking_id plain.
+//   - Live EN advisory: publisher is a long name with a space and umlaut.
+//   - Security-test advisory: publisher "Security Test Publisher".
+//   - Withdrawn advisory: publisher "Example Corp", tracking_id "RHSA-2024:5101"
+//     (colon in tracking_id proves encodeURIComponent round-trip via %3A — ADR-0016).
+const ADVISORY_KEY = (publisher, trackingId) => `${publisher}\x00${trackingId}`;
+
+const ADVISORY_BY_PUB_TRACKING = new Map([
+  [ADVISORY_KEY("Example AG", "DE-2026-0001"), { doc: deDoc }],
+  [
+    ADVISORY_KEY("Bundesamt für Sicherheit in der Informationstechnik", "BSI-2022-0001"),
+    { doc: enDoc }
+  ],
+  [ADVISORY_KEY("Security Test Publisher", "SEC-TEST-0001"), { doc: maliciousHrefsDoc }],
+  [
+    // Withdrawn fixture. The tracking_id contains a colon, proving that
+    // encodeURIComponent → Gin URL-decode → mock URL-decode round-trips correctly.
+    ADVISORY_KEY("Example Corp", "RHSA-2024:5101"),
+    {
+      withdrawn: {
+        withdrawn: true,
+        tracking_id: "RHSA-2024:5101",
+        withdrawn_at: "2024-09-01T00:00:00Z"
+      }
+    }
+  ]
+]);
+
 // Mutable scenario state, flipped via /__mock/scenario.
-//  - "ok":     serve the canned 2-row list / documents (default).
-//  - "empty":  list returns zero rows.
-//  - "error":  list returns HTTP 500 with an { error } body.
-//  - "facets": serve the richer 5-row corpus used by the filter/facet e2e suite.
-//  - "capped": serve a 60-publisher corpus so the publisher facet is truncated
-//              (capped:true) — exercises the sidebar's "most frequent" notice.
+//  - "ok":            serve the canned 2-row list / documents (default).
+//  - "empty":         list returns zero rows.
+//  - "error":         list returns HTTP 500 with an { error } body.
+//  - "facets":        serve the richer 5-row corpus used by the filter/facet e2e suite.
+//  - "capped":        serve a 60-publisher corpus so the publisher facet is truncated
+//                     (capped:true) — exercises the sidebar's "most frequent" notice.
+//  - "null_publisher": 2-row corpus + one row with publisher_name=null, exercising
+//                     the list's "unlinked title" code path (ADR-0016).
 let scenario = "ok";
 // Records the query string of the last /api/advisories and /api/facets requests
 // so a test can assert the server-side fetch carried the expected params (sort,
@@ -202,6 +271,7 @@ function corpus() {
   if (scenario === "empty") return [];
   if (scenario === "facets") return FACET_ROWS;
   if (scenario === "capped") return CAPPED_ROWS;
+  if (scenario === "null_publisher") return [...ROWS, NULL_PUBLISHER_ROW];
   return ROWS;
 }
 
@@ -432,10 +502,9 @@ const server = createServer((req, res) => {
   // dimensions (vendors/products) drive the facets but are never list columns.
   const toListRow = ({ vendors: _vendors, products: _products, ...row }) => row;
 
-  if (
-    req.method === "GET" &&
-    (url.pathname === "/api/advisories" || url.pathname === "/api/advisories/search")
-  ) {
+  // GET /api/advisories — paginated advisory list (ADR-0016: search alias retired).
+  // The /api/advisories/search route was removed in task 44; it is not served here.
+  if (req.method === "GET" && url.pathname === "/api/advisories") {
     lastListQuery = url.search.replace(/^\?/, "");
     if (scenario === "error") {
       sendJSON(res, 500, { error: "internal database error" });
@@ -454,6 +523,28 @@ const server = createServer((req, res) => {
       limit,
       offset
     });
+    return;
+  }
+
+  // GET /api/advisories/:publisher/:trackingid — 2-segment publisher-scoped permalink
+  // (ADR-0016). Both segments are URL-decoded before the lookup. Responses:
+  //   200 + CSAF JSON for a live advisory
+  //   410 + WithdrawnEnvelope for a tombstoned advisory
+  //   404 for an unknown (publisher, trackingId) pair
+  const advisoryPermalinkMatch = url.pathname.match(/^\/api\/advisories\/([^/]+)\/([^/]+)$/);
+  if (req.method === "GET" && advisoryPermalinkMatch) {
+    const publisher = decodeURIComponent(advisoryPermalinkMatch[1]);
+    const trackingId = decodeURIComponent(advisoryPermalinkMatch[2]);
+    const entry = ADVISORY_BY_PUB_TRACKING.get(ADVISORY_KEY(publisher, trackingId));
+    if (!entry) {
+      sendJSON(res, 404, { error: "advisory not found" });
+      return;
+    }
+    if (entry.withdrawn) {
+      sendJSON(res, 410, entry.withdrawn);
+      return;
+    }
+    sendJSON(res, 200, entry.doc);
     return;
   }
 

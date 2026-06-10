@@ -8,9 +8,15 @@
 import { test, expect } from "@playwright/test";
 import { setScenario } from "./helpers";
 
-// Advisory detail page (plan task 14, spec §10, ADR-0001). The server load fetches
-// the verbatim CSAF JSON from /api/documents/:id (served by the mock from the real
-// DE + EN fixtures), then the page runs convertToDocModel → appStore → <Webview>.
+// Advisory detail page (plan tasks 14/55, spec §10, ADR-0016). The server load
+// fetches the advisory by its 2-segment publisher-scoped permalink
+// GET /api/advisories/:publisher/:trackingid (ADR-0016), then the page runs
+// convertToDocModel → appStore → <Webview>.
+//
+// Canonical permalink form: /advisories/{publisher}/{trackingId}, both segments
+// percent-encoded with encodeURIComponent. Publisher "Example AG" → "Example%20AG";
+// tracking_id "RHSA-2024:5101" → "RHSA-2024%3A5101" (colon encoded).
+// The single-segment /advisories/{n} form is retired and not tested here.
 
 test.beforeEach(async ({ request }) => {
   await setScenario(request, "ok");
@@ -24,7 +30,8 @@ test("navigates from the list to the detail permalink and renders the Webview", 
     .getByRole("link", { name: "ExampleApp: Schwachstelle ermöglicht Codeausführung" })
     .click();
 
-  await expect(page).toHaveURL(/\/advisories\/1$/);
+  // The 2-segment permalink (ADR-0016): /advisories/Example%20AG/DE-2026-0001
+  await expect(page).toHaveURL(/\/advisories\/Example%20AG\/DE-2026-0001$/);
 
   // The vendored Webview's General section renders the advisory title + publisher
   // (the publisher name also appears in the product tree, hence .first()).
@@ -40,7 +47,7 @@ test("navigates from the list to the detail permalink and renders the Webview", 
 });
 
 test("renders the German sample document with its sections", async ({ page }) => {
-  await page.goto("/advisories/1");
+  await page.goto("/advisories/Example%20AG/DE-2026-0001");
 
   await expect(
     page.getByText("ExampleApp: Schwachstelle ermöglicht Codeausführung").first()
@@ -52,7 +59,9 @@ test("renders the German sample document with its sections", async ({ page }) =>
 });
 
 test("renders the English sample document with its sections", async ({ page }) => {
-  await page.goto("/advisories/2");
+  await page.goto(
+    "/advisories/Bundesamt%20f%C3%BCr%20Sicherheit%20in%20der%20Informationstechnik/BSI-2022-0001"
+  );
 
   await expect(
     page.getByText("CVRF-CSAF-Converter: XML External Entities Vulnerability").first()
@@ -67,7 +76,7 @@ test("renders the English sample document with its sections", async ({ page }) =
 test("preserves line breaks in free-text notes and escapes embedded markup (ADR-0001)", async ({
   page
 }) => {
-  await page.goto("/advisories/1");
+  await page.goto("/advisories/Example%20AG/DE-2026-0001");
   // The document-level summary note lives behind the Notes tab.
   await page.getByRole("tab", { name: "Notes" }).click();
 
@@ -93,7 +102,7 @@ test("preserves line breaks in free-text notes and escapes embedded markup (ADR-
 test("escapes HTML markup inside free-text rather than injecting elements (ADR-0001)", async ({
   page
 }) => {
-  await page.goto("/advisories/1");
+  await page.goto("/advisories/Example%20AG/DE-2026-0001");
   // The document-level notes (incl. the markup-probe note) live behind the Notes tab.
   await page.getByRole("tab", { name: "Notes" }).click();
 
@@ -111,14 +120,34 @@ test("escapes HTML markup inside free-text rather than injecting elements (ADR-0
   await expect(injected).toHaveCount(0);
 });
 
-test("shows a friendly not-found page for an unknown advisory id", async ({ page }) => {
-  const response = await page.goto("/advisories/999");
+test("shows a friendly not-found page for an unknown advisory", async ({ page }) => {
+  const response = await page.goto("/advisories/Unknown%20Publisher/DOES-NOT-EXIST");
   expect(response?.status()).toBe(404);
 
   await expect(page.getByRole("heading", { name: "Advisory not found" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Back to advisories" })).toBeVisible();
   // A friendly page, not a raw framework error / stack trace.
   await expect(page.locator("body")).not.toContainText("Internal Error");
+});
+
+test("withdrawn advisory renders the no-longer-published notice (ADR-0016 §4)", async ({
+  page
+}) => {
+  // The fixture publisher "Example Corp" / tracking_id "RHSA-2024:5101" is tombstoned.
+  // The colon in the tracking_id is percent-encoded as %3A in the URL, proving the
+  // encodeURIComponent → Gin URL-decode → SvelteKit params round-trip.
+  await page.goto("/advisories/Example%20Corp/RHSA-2024%3A5101");
+
+  // The withdrawn notice must be visible, not the advisory viewer.
+  await expect(page.getByTestId("withdrawn-notice")).toBeVisible();
+  await expect(page.getByTestId("advisory-viewer")).toHaveCount(0);
+  await expect(page.getByTestId("advisory-header")).toHaveCount(0);
+
+  // The tracking_id shown in the notice is the DB-authoritative value (C-21/SA-31).
+  await expect(page.getByTestId("withdrawn-notice")).toContainText("RHSA-2024:5101");
+
+  // The back-to-list link is still present.
+  await expect(page.getByRole("link", { name: "Back to advisories" })).toBeVisible();
 });
 
 // ---------------------------------------------------------------------------
@@ -131,7 +160,7 @@ test("shows a friendly not-found page for an unknown advisory id", async ({ page
 // ---------------------------------------------------------------------------
 
 test("the header band shows the advisory's key metadata above the viewer", async ({ page }) => {
-  await page.goto("/advisories/1");
+  await page.goto("/advisories/Example%20AG/DE-2026-0001");
 
   const band = page.getByTestId("advisory-header");
   await expect(band).toBeVisible();
@@ -165,7 +194,9 @@ test("the band reflects the rendered document, not a stale list value", async ({
   // The BSI document scores CVSS v3 6.1 (→ Medium). The mock *list* row for this
   // advisory carries 5.3, but the band is derived from the document, so it must
   // show the document's own scoring — proving the band reads the real document.
-  await page.goto("/advisories/2");
+  await page.goto(
+    "/advisories/Bundesamt%20f%C3%BCr%20Sicherheit%20in%20der%20Informationstechnik/BSI-2022-0001"
+  );
 
   const band = page.getByTestId("advisory-header");
   await expect(band).toBeVisible();
@@ -178,28 +209,30 @@ test("the band reflects the rendered document, not a stale list value", async ({
 test("the band exposes a well-formed absolute permalink (not host-relative junk)", async ({
   page
 }) => {
-  await page.goto("/advisories/1");
+  await page.goto("/advisories/Example%20AG/DE-2026-0001");
 
   const band = page.getByTestId("advisory-header");
 
   // A copy-permalink affordance is present.
   await expect(band.getByRole("button", { name: "Copy permalink" })).toBeVisible();
 
-  // The visible canonical link is the page's own absolute /advisories/1 URL.
-  const link = band.getByRole("link").filter({ hasText: "/advisories/1" });
+  // The visible canonical link uses the 2-segment permalink (ADR-0016).
+  const link = band.getByRole("link").filter({ hasText: "/advisories/Example%20AG/DE-2026-0001" });
   await expect(link).toBeVisible();
   const href = await link.getAttribute("href");
-  // The visible anchor uses the absolute path; the text is the full absolute URL.
-  expect(href).toBe("/advisories/1");
+  expect(href).toBe("/advisories/Example%20AG/DE-2026-0001");
   const text = (await link.innerText()).trim();
-  expect(text).toMatch(/^https?:\/\/[^/]+\/advisories\/1$/);
+  expect(text).toMatch(/^https?:\/\/[^/]+\/advisories\/Example%20AG\/DE-2026-0001$/);
   // Regression guard: the early `resolve()` approach produced a malformed
-  // `host../advisories/1`. The canonical URL must never contain `..`.
+  // `host../advisories/...`. The canonical URL must never contain `..`.
   expect(text).not.toContain("..");
 
   // <link rel="canonical"> mirrors the same absolute URL.
   const canonical = page.locator('link[rel="canonical"]');
-  await expect(canonical).toHaveAttribute("href", /^https?:\/\/[^/]+\/advisories\/1$/);
+  await expect(canonical).toHaveAttribute(
+    "href",
+    /^https?:\/\/[^/]+\/advisories\/Example%20AG\/DE-2026-0001$/
+  );
   expect(await canonical.getAttribute("href")).not.toContain("..");
 });
 
@@ -218,12 +251,12 @@ test("the band's release date is locale-formatted: ISO in EN, DD.MM.YYYY in DE",
     page.getByTestId("advisory-header").locator(`dt:text-is("${label}") + dd`);
 
   await context.addCookies([{ name: "locale", value: "en", url: "http://127.0.0.1:4173" }]);
-  await page.goto("/advisories/1");
+  await page.goto("/advisories/Example%20AG/DE-2026-0001");
   await expect(releasedValue("Released")).toHaveText("2026-05-20");
 
   await context.clearCookies();
   await context.addCookies([{ name: "locale", value: "de", url: "http://127.0.0.1:4173" }]);
-  await page.goto("/advisories/1");
+  await page.goto("/advisories/Example%20AG/DE-2026-0001");
   await expect(releasedValue("Veröffentlicht")).toHaveText("20.05.2026");
 });
 
@@ -231,7 +264,9 @@ test("the not-found page is localized in German (F2)", async ({ request }) => {
   // The server throws only a stable status tag; the +error page localizes off the
   // status, so a German visitor must see German not-found copy, never the raw
   // English server string.
-  const res = await request.get("/advisories/999", { headers: { Cookie: "locale=de" } });
+  const res = await request.get("/advisories/Unknown%20Publisher/DOES-NOT-EXIST", {
+    headers: { Cookie: "locale=de" }
+  });
   expect(res.status()).toBe(404);
   const html = await res.text();
 

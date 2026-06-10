@@ -33,7 +33,7 @@ test.beforeEach(async ({ request }) => {
 test("javascript: reference URL renders as inert text, not a live anchor (SA-8)", async ({
   page
 }) => {
-  await page.goto("/advisories/3");
+  await page.goto("/advisories/Security%20Test%20Publisher/SEC-TEST-0001");
 
   // The References section of the Webview. On a wide layout (Desktop Chrome)
   // it is inside a collapsible tab; click it to reveal the section.
@@ -60,7 +60,7 @@ test("javascript: reference URL renders as inert text, not a live anchor (SA-8)"
 });
 
 test("data: reference URL renders as inert text, not a live anchor (SA-8)", async ({ page }) => {
-  await page.goto("/advisories/3");
+  await page.goto("/advisories/Security%20Test%20Publisher/SEC-TEST-0001");
 
   await page.getByRole("tab", { name: "References" }).click();
 
@@ -75,7 +75,7 @@ test("data: reference URL renders as inert text, not a live anchor (SA-8)", asyn
 test("safe https: reference renders as a real anchor with target=_blank AND rel=noopener noreferrer (SA-8)", async ({
   page
 }) => {
-  await page.goto("/advisories/3");
+  await page.goto("/advisories/Security%20Test%20Publisher/SEC-TEST-0001");
 
   await page.getByRole("tab", { name: "References" }).click();
 
@@ -111,7 +111,7 @@ test("free-text note in the security-test fixture renders escaped, no injected e
   page
 }) => {
   // The malicious-hrefs fixture summary note mentions the security test purpose.
-  await page.goto("/advisories/3");
+  await page.goto("/advisories/Security%20Test%20Publisher/SEC-TEST-0001");
   await page.getByRole("tab", { name: "Notes" }).click();
 
   const note = page.locator(".csaf-free-text").first();
@@ -151,7 +151,7 @@ test("home page carries Referrer-Policy header", async ({ request }) => {
 });
 
 test("detail page carries X-Content-Type-Options: nosniff (SA-18)", async ({ request }) => {
-  const res = await request.get("/advisories/1");
+  const res = await request.get("/advisories/Example%20AG/DE-2026-0001");
   expect(res.headers()["x-content-type-options"]).toBe("nosniff");
 });
 
@@ -187,7 +187,7 @@ test("home page carries a Content-Security-Policy with no unsafe-inline in scrip
 });
 
 test("CSP is present and well-formed on the detail page too (SA-9)", async ({ request }) => {
-  const res = await request.get("/advisories/1");
+  const res = await request.get("/advisories/Example%20AG/DE-2026-0001");
   const csp = res.headers()["content-security-policy"];
   expect(csp).toBeTruthy();
 

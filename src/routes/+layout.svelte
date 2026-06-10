@@ -107,10 +107,16 @@
   const home = resolve("/");
   const impressum = resolve("/impressum");
   const datenschutz = resolve("/datenschutz");
+  const manual = resolve("/manual");
 
   // Year for the footer copyright line. Computed once at module init; a public
   // read-only portal does not need it to roll over mid-session.
   const year = new Date().getUTCFullYear();
+
+  // Build version, baked in by Vite's `define` (vite.config.ts). Shown in the
+  // footer so the deployed build is identifiable. Not translated — it is a
+  // SemVer string, locale-independent.
+  const appVersion = __APP_VERSION__;
 </script>
 
 <!--
@@ -192,6 +198,9 @@
     >
       <p>{t("footer.tagline")}</p>
       <nav class="flex items-center gap-4" aria-label={t("footer.legalLabel")}>
+        <a href={manual} class="hover:text-primary-700 hover:underline dark:hover:text-primary-400">
+          {t("footer.manual")}
+        </a>
         <a
           href={impressum}
           class="hover:text-primary-700 hover:underline dark:hover:text-primary-400"
@@ -205,6 +214,9 @@
           {t("footer.datenschutz")}
         </a>
         <span class="text-gray-400 dark:text-gray-500">{t("footer.copyright", { year })}</span>
+        <span class="font-mono text-gray-400 dark:text-gray-500" title="Build version">
+          {appVersion}
+        </span>
       </nav>
     </div>
   </footer>

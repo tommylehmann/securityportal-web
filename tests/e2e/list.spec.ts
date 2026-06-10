@@ -36,7 +36,9 @@ test("renders the advisory rows with the spec §13 columns", async ({ page }) =>
     name: "ExampleApp: Schwachstelle ermöglicht Codeausführung"
   });
   await expect(titleLink).toBeVisible();
-  await expect(titleLink).toHaveAttribute("href", "/advisories/1");
+  // 2-segment publisher-scoped permalink (ADR-0016). SvelteKit's resolve() sets the
+  // href as the decoded path (spaces literal); the browser percent-encodes on navigation.
+  await expect(titleLink).toHaveAttribute("href", "/advisories/Example AG/DE-2026-0001");
 
   // The row carries the rest of the §13 columns for that advisory.
   const row = page.getByRole("row").filter({ hasText: "DE-2026-0001" });
@@ -120,4 +122,26 @@ test("pagination puts offset in the URL and re-requests the next page", async ({
   // Previous returns to the first page (offset back to 0, dropped from URL).
   await page.getByRole("button", { name: "Previous" }).click();
   await expect(page.getByText(/Showing\s+1[–-]1 of 2/)).toBeVisible();
+});
+
+test("a row with null publisher_name renders as plain text (no link) (ADR-0016)", async ({
+  page,
+  request
+}) => {
+  // The "null_publisher" scenario appends one advisory whose publisher_name is null.
+  // ADR-0016: the list must render its title as unlinked plain text, never emitting
+  // a /advisories//{trackingId} URL that cannot resolve.
+  await setScenario(request, "null_publisher");
+  await page.goto("/");
+
+  // The anonymous advisory's title appears as plain text, not an anchor.
+  const title = "Anonymous advisory: no publisher";
+  await expect(page.getByText(title)).toBeVisible();
+  // The text is NOT wrapped in an <a> element — no broken permalink emitted.
+  await expect(page.getByRole("link", { name: title })).toHaveCount(0);
+
+  // The other (publisher-known) rows still render as links.
+  await expect(
+    page.getByRole("link", { name: "ExampleApp: Schwachstelle ermöglicht Codeausführung" })
+  ).toBeVisible();
 });

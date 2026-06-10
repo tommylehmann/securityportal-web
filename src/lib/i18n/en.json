@@ -73,7 +73,10 @@
   "severity.critical": "Critical",
 
   "detail.back": "Back to advisories",
-  "detail.headTitle": "Advisory {id} — SecurityPortal",
+  "detail.headTitle": "Advisory {trackingId} — SecurityPortal",
+  "detail.withdrawn.title": "Advisory no longer published",
+  "detail.withdrawn.body": "This advisory has been withdrawn and is no longer available.",
+  "detail.withdrawn.date": "Withdrawn on {date}",
   "detail.meta.publisher": "Publisher",
   "detail.meta.released": "Released",
   "detail.meta.initialRelease": "Initial release",
@@ -116,5 +119,10 @@
   "legal.datenschutz.rightsHeading": "Your rights",
   "legal.datenschutz.rights": "[ tbd — operator to complete: access, rectification, erasure, restriction, objection, data portability, complaint to a supervisory authority ]",
   "legal.datenschutz.contactHeading": "Contact for data protection",
-  "legal.datenschutz.contact": "[ tbd — operator to complete ]"
+  "legal.datenschutz.contact": "[ tbd — operator to complete ]",
+
+  "content.manual.headTitle": "User Manual — SecurityPortal",
+  "content.manual.title": "User Manual",
+
+  "footer.manual": "User Manual"
 }

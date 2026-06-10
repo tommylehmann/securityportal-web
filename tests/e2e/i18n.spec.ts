@@ -116,7 +116,8 @@ test("the German choice persists across navigation and a reload (cookie)", async
   await page
     .getByRole("link", { name: "ExampleApp: Schwachstelle ermöglicht Codeausführung" })
     .click();
-  await expect(page).toHaveURL(/\/advisories\/1$/);
+  // 2-segment publisher-scoped permalink (ADR-0016).
+  await expect(page).toHaveURL(/\/advisories\/Example%20AG\/DE-2026-0001$/);
   await expect(page.getByRole("link", { name: DE_CHROME_DETAIL_BACK })).toBeVisible();
 
   // Back to the list, then a full reload — the cookie keeps the SSR in German, and
@@ -173,7 +174,10 @@ test("SSR cookie wins over Accept-Language", async ({ request }) => {
 });
 
 test("SSR honours a German locale cookie for the detail permalink", async ({ request }) => {
-  const res = await request.get("/advisories/1", { headers: { Cookie: "locale=de" } });
+  // 2-segment publisher-scoped permalink (ADR-0016).
+  const res = await request.get("/advisories/Example%20AG/DE-2026-0001", {
+    headers: { Cookie: "locale=de" }
+  });
   expect(res.ok()).toBeTruthy();
   const html = await res.text();
 
@@ -212,7 +216,8 @@ test("spot-checks German strings: count, facet label, clear-all, back link", asy
   await expect(page.getByRole("button", { name: DE_CHROME.clearAll })).toBeVisible();
 
   // "Back to advisories" → German on the detail page.
-  await page.goto("/advisories/1");
+  // Use the 2-segment permalink (ADR-0016).
+  await page.goto("/advisories/Example%20AG/DE-2026-0001");
   await expect(page.getByRole("link", { name: DE_CHROME_DETAIL_BACK })).toBeVisible();
 });
 
@@ -262,11 +267,14 @@ for (const locale of ["en", "de"] as const) {
     expect(list.ok()).toBeTruthy();
     assertNoRawKeys(await list.text(), `list (${locale})`);
 
-    const detail = await request.get("/advisories/1", { headers });
+    // 2-segment publisher-scoped permalink (ADR-0016).
+    const detail = await request.get("/advisories/Example%20AG/DE-2026-0001", { headers });
     expect(detail.ok()).toBeTruthy();
     assertNoRawKeys(await detail.text(), `detail (${locale})`);
 
-    const notFound = await request.get("/advisories/999", { headers });
+    const notFound = await request.get("/advisories/Unknown%20Publisher/DOES-NOT-EXIST", {
+      headers
+    });
     expect(notFound.status()).toBe(404);
     assertNoRawKeys(await notFound.text(), `not-found (${locale})`);
   });

@@ -73,7 +73,10 @@
   "severity.critical": "Kritisch",
 
   "detail.back": "Zurück zu den Sicherheitshinweisen",
-  "detail.headTitle": "Sicherheitshinweis {id} — SecurityPortal",
+  "detail.headTitle": "Sicherheitshinweis {trackingId} — SecurityPortal",
+  "detail.withdrawn.title": "Sicherheitshinweis nicht mehr veröffentlicht",
+  "detail.withdrawn.body": "Dieser Sicherheitshinweis wurde zurückgezogen und ist nicht mehr verfügbar.",
+  "detail.withdrawn.date": "Zurückgezogen am {date}",
   "detail.meta.publisher": "Herausgeber",
   "detail.meta.released": "Veröffentlicht",
   "detail.meta.initialRelease": "Erstveröffentlichung",
@@ -116,5 +119,10 @@
   "legal.datenschutz.rightsHeading": "Ihre Rechte",
   "legal.datenschutz.rights": "[ tbd — vom Betreiber auszufüllen: Auskunft, Berichtigung, Löschung, Einschränkung, Widerspruch, Datenübertragbarkeit, Beschwerde bei einer Aufsichtsbehörde ]",
   "legal.datenschutz.contactHeading": "Kontakt zum Datenschutz",
-  "legal.datenschutz.contact": "[ tbd — vom Betreiber auszufüllen ]"
+  "legal.datenschutz.contact": "[ tbd — vom Betreiber auszufüllen ]",
+
+  "content.manual.headTitle": "Benutzerhandbuch — SecurityPortal",
+  "content.manual.title": "Benutzerhandbuch",
+
+  "footer.manual": "Benutzerhandbuch"
 }

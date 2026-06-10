@@ -5,9 +5,15 @@
 //
 // SPDX-FileCopyrightText: 2026 Tommy Lehmann
 
+/// <reference types="vite/client" />
+
 // See https://kit.svelte.dev/docs/types#app
 // for information about these interfaces
 import type { Locale } from "$lib/i18n";
+
+// Build-time version constant, injected by Vite's `define` (see vite.config.ts)
+// and rendered in the footer.
+declare const __APP_VERSION__: string;
 
 declare global {
   namespace App {

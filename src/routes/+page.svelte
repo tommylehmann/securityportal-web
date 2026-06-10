@@ -204,7 +204,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
-            {#each advisories as advisory (advisory.id)}
+            {#each advisories as advisory (advisory.tracking_id)}
               <tr
                 class="odd:bg-white even:bg-gray-50/60 hover:bg-primary-50/60 dark:odd:bg-gray-900 dark:even:bg-gray-800/40 dark:hover:bg-gray-800"
               >
@@ -212,12 +212,28 @@
                   <SeverityBadge severity={severityOf(advisory)} score={advisory.critical} />
                 </td>
                 <td class="px-3 py-2 align-top">
-                  <a
-                    href={resolve("/advisories/[id]", { id: String(advisory.id) })}
-                    class="font-medium text-primary-700 hover:underline dark:text-primary-400"
-                  >
-                    {advisory.title ?? advisory.tracking_id}
-                  </a>
+                  <!--
+                    Link to the canonical 2-segment permalink (ADR-0016).
+                    advisory.publisher_name may be null for malformed advisory
+                    data; in that case we render the title as plain text rather
+                    than emitting a `/advisories//{trackingId}` URL that cannot
+                    resolve (C-21/SA-31).
+                  -->
+                  {#if advisory.publisher_name !== null}
+                    <a
+                      href={resolve("/advisories/[publisher]/[trackingId]", {
+                        publisher: advisory.publisher_name,
+                        trackingId: advisory.tracking_id
+                      })}
+                      class="font-medium text-primary-700 hover:underline dark:text-primary-400"
+                    >
+                      {advisory.title ?? advisory.tracking_id}
+                    </a>
+                  {:else}
+                    <span class="font-medium text-gray-900 dark:text-gray-100">
+                      {advisory.title ?? advisory.tracking_id}
+                    </span>
+                  {/if}
                   <div class="text-xs text-gray-500 dark:text-gray-400">{advisory.tracking_id}</div>
                 </td>
                 <td class="px-3 py-2 align-top text-xs text-gray-700 dark:text-gray-300">

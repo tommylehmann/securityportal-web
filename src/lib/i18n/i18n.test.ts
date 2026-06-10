@@ -66,7 +66,9 @@ describe("createTranslator", () => {
   });
 
   it("interpolates params", () => {
-    expect(t("detail.headTitle", { id: 7 })).toBe("Advisory 7 — SecurityPortal");
+    expect(t("detail.headTitle", { trackingId: "PORTAL-2024-001" })).toBe(
+      "Advisory PORTAL-2024-001 — SecurityPortal"
+    );
   });
 
   it("returns the key itself for a missing translation", () => {

@@ -156,14 +156,15 @@ src/
     +page.svelte        # Advisory list (home)
     +page.server.ts     # Fetch advisories from API
     advisories/
-      [id]/
-        +page.svelte    # Advisory detail (CSAF webview render)
-        +page.server.ts # Fetch document JSON from API
-        +error.svelte   # Friendly 404 page
-    impressum/
-      +page.svelte      # Legal: company/contact info (placeholder)
-    datenschutz/
-      +page.svelte      # Privacy policy (placeholder)
+      [publisher]/
+        [trackingId]/
+          +page.svelte    # Advisory detail (CSAF webview render)
+          +page.server.ts # Fetch advisory by publisher + tracking_id from API
+          +error.svelte   # Friendly 404 page
+    [...page]/
+      +page.svelte      # Content page (impressum, datenschutz, manual)
+      +page.server.ts   # Load content from registry + render sanitized HTML
+      +error.svelte     # 404 for unregistered slugs
   lib/
     i18n/
       de.json           # German message catalog
@@ -174,6 +175,13 @@ src/
       client.ts         # Fetch wrappers + error handling
       client.test.ts    # Vitest unit tests
     format.ts           # Date formatting (ISO YYYY-MM-DD)
+    server/
+      legal-markdown.ts # Markdown → sanitized HTML (ADR-0010, the single {@html} carve-out)
+      runtime-config.ts # Server-side branding + logo + legal-dir config
+    content/
+      registry.ts       # Closed content-page registry (ADR-0018)
+      manual.en.md      # User manual (English)
+      manual.de.md      # User manual (German)
     components/
       SeverityBadge.svelte  # Colored severity indicator
     CSAFWebview/          # Vendored CSAF webview tree (from ISDuBA)
@@ -210,23 +218,38 @@ Advisory list with WID-style layout and faceted filtering sidebar:
 - **Error state:** friendly alert if the API call fails (shows the API error message, not a stack trace).
 - **URL-based filter state:** all filters are encoded in the query string, enabling shareable deep-links to filtered views.
 
-### `/advisories/[id]` (detail)
+### `/advisories/[publisher]/[trackingId]` (detail)
 
-Single advisory rendered via the vendored CSAF webview:
+Single advisory rendered via the vendored CSAF webview (ADR-0016):
 
-- Calls `GET /api/documents/:id` server-side to fetch the stored CSAF JSON.
-- Runs `convertToDocModel(json)` to transform it into the webview's internal shape.
+- Calls `GET /api/advisories/{publisher}/{trackingid}` server-side to fetch the stored CSAF JSON.
+- If the advisory is withdrawn (API returns 410 Gone), renders the "no longer published" notice with the advisory's tracking ID and withdrawal date.
+- If published (API returns 200 + CSAF JSON), runs `convertToDocModel(json)` to transform the CSAF into the webview's internal shape.
 - Renders the `<Webview>` component with tabs for General, Product Tree, Vulnerabilities, Notes, etc.
 - A "Back to advisories" link returns to the list.
-- 404 handling: if the document is not found or is non-publishable, the friendly error page is shown.
+- 404 handling: if the `(publisher, tracking_id)` pair does not exist or is non-publishable, the friendly error page is shown.
+- The URL (canonical permalink) is stable across database reseeds — tracking IDs are publisher-assigned, not database surrogates.
+- Special characters in publisher names and tracking IDs (spaces, colons, umlauts) are percent-encoded in the URL; SvelteKit decodes them automatically.
 
-### `/impressum` (Imprint)
+### `/[slug]` (content pages via registry, ADR-0018)
 
-**TODO:** Operator must fill in company name, address, contact info, legal entity details. Currently a placeholder.
+Generic content-page route backed by a closed registry. Pages are rendered with sanitized HTML (same pipeline as legal pages).
 
-### `/datenschutz` (Privacy Policy)
+**Built-in pages:**
+- **`/impressum`** (kind: `legal`) — Imprint / company info. Reads from `${LEGAL_DIR}/impressum.de.md` and `.en.md`; shows a placeholder if missing.
+- **`/datenschutz`** (kind: `legal`) — Privacy Policy. Reads from `${LEGAL_DIR}/datenschutz.de.md` and `.en.md`; shows a placeholder if missing.
+- **`/manual`** (kind: `repo`) — User Manual. Bundled Markdown documenting how to browse the portal and use the REST API. Links to `/api/docs` for the interactive OpenAPI reference.
 
-**TODO:** Operator must fill in the privacy statement (data processing, third parties, user rights, etc.). Currently a placeholder.
+**Security:**
+- The registry (`CONTENT_REGISTRY` in `src/lib/content/registry.ts`) is a **closed map**. Request slugs are looked up in the registry only; no request input is ever used to construct a file path. Unregistered or malicious slugs (e.g., `../etc/passwd`, `%2e%2e`, absolute paths) return 404 before any file access.
+- The only `{@html}` sink in the app is the sanitized output from `renderLegalMarkdown`, shared between legal and repo content. Hostile Markdown is inert (no script tags, inline events, or unsafe HTML).
+
+**Adding a new page:**
+1. Add an entry to `CONTENT_REGISTRY` with a slug, title i18n key, and kind (`legal` or `repo`).
+2. Add the i18n title key to `src/lib/i18n/de.json` and `src/lib/i18n/en.json`.
+3. For `kind: "repo"`, create `src/lib/content/<slug>.de.md` and `<slug>.en.md` and import them in the route handler.
+4. For `kind: "legal"`, the operator mounts the Markdown files at runtime (e.g., `${LEGAL_DIR}/slug.de.md`).
+5. The route is automatically available at `/<slug>` with the title, sanitization, and fallback chain.
 
 ## CSAF rendering
 

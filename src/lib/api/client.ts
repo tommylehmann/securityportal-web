@@ -234,6 +234,9 @@ export async function fetchFacets(
  * an arbitrary CSAF document; the caller feeds it to `convertToDocModel`. A
  * missing/non-publishable id surfaces as an ApiError with status 404.
  *
+ * This is the internal/revision-level endpoint (/api/documents/:id).
+ * For the public advisory permalink use fetchAdvisory (ADR-0016).
+ *
  * Server `load` functions should pass `{ base: serverApiBase() }`.
  */
 export async function fetchDocument(
@@ -242,6 +245,80 @@ export async function fetchDocument(
   opts: FetchOpts = {}
 ): Promise<unknown> {
   return getJSON<unknown>(fetchFn, `/api/documents/${encodeURIComponent(String(id))}`, opts.base);
+}
+
+/**
+ * The shape of the withdrawn envelope returned by the API as HTTP 410 Gone
+ * when an advisory has been tombstoned (ADR-0015/ADR-0016 §4). The caller
+ * receives this as structured data rather than an error so the detail page can
+ * render the "no longer published" notice with the stored tracking_id and
+ * withdrawal timestamp.
+ */
+export interface WithdrawnEnvelope {
+  withdrawn: true;
+  tracking_id: string;
+  withdrawn_at: string | null;
+}
+
+/**
+ * Fetches the latest publishable document for an advisory by its canonical
+ * (publisher, tracking_id) permalink (ADR-0016). Both segments are
+ * percent-encoded with `encodeURIComponent` so values containing `:`, spaces,
+ * `/`, `&`, etc. round-trip through Gin's path-param decode correctly
+ * (C-21/SA-31).
+ *
+ * Returns either the raw CSAF JSON (for a live advisory) or a WithdrawnEnvelope
+ * (for a tombstoned advisory — HTTP 410 Gone from the API). A
+ * missing/non-publishable advisory surfaces as an ApiError with status 404.
+ * Any other non-2xx response surfaces as an ApiError with its HTTP status.
+ *
+ * Server `load` functions should pass `{ base: serverApiBase() }`.
+ */
+export async function fetchAdvisory(
+  fetchFn: FetchFn,
+  publisher: string,
+  trackingId: string,
+  opts: FetchOpts = {}
+): Promise<unknown | WithdrawnEnvelope> {
+  const resolvedBase = opts.base !== undefined ? opts.base : BROWSER_API_BASE;
+  const path = `/api/advisories/${encodeURIComponent(publisher)}/${encodeURIComponent(trackingId)}`;
+  const url = `${resolvedBase}${path}`;
+
+  let response: Response;
+  try {
+    response = await fetchFn(url, { headers: { Accept: "application/json" } });
+  } catch (cause) {
+    throw new ApiError(0, `cannot reach the API at ${url}: ${String(cause)}`);
+  }
+
+  // 410 Gone — withdrawn advisory. The body is the WithdrawnEnvelope shape
+  // `{ withdrawn: true, tracking_id, withdrawn_at }`, not the error envelope.
+  // We parse it as structured data rather than throwing so the page server can
+  // return WithdrawnData to the page without a second round-trip.
+  if (response.status === 410) {
+    try {
+      const envelope = (await response.json()) as WithdrawnEnvelope;
+      return envelope;
+    } catch {
+      // Unparsable 410 body — treat as a generic error.
+      throw new ApiError(410, response.statusText || "Gone");
+    }
+  }
+
+  if (!response.ok) {
+    let message = response.statusText || `request failed (${response.status})`;
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (body && typeof body.error === "string") {
+        message = body.error;
+      }
+    } catch {
+      // Ignore an unparsable error body and keep the status-text message.
+    }
+    throw new ApiError(response.status, message);
+  }
+
+  return (await response.json()) as unknown;
 }
 
 /**
