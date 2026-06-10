@@ -1,0 +1,25 @@
+# This file is Free Software under the Apache-2.0 License
+# without warranty, see README.md and LICENSES/Apache-2.0.txt for details.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# SPDX-FileCopyrightText: 2026 Tommy Lehmann
+
+# Keep the build context small and free of host-only / sensitive files. The
+# Dockerfile reinstalls dependencies from the lockfile, so node_modules must not
+# leak in from the host; .env and .git must never reach the image layers.
+.git
+.github
+node_modules
+build
+.svelte-kit
+.env
+.env.*
+!.env.example
+coverage
+test-results
+playwright-report
+*-sbom.cdx.json
+*-sbom.spdx.json
+.eslintcache
+.prettiercache

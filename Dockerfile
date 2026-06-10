@@ -6,7 +6,11 @@
 # SPDX-FileCopyrightText: 2026 Tommy Lehmann
 
 # Build the SvelteKit frontend.
-FROM library/node:20-alpine AS build
+# Base image is pinned by digest (supply-chain hardening); the tag in the
+# comment is human-readable. Dependabot (docker ecosystem, see
+# .github/dependabot.yml) bumps the digest.
+# library/node:20-alpine
+FROM library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS build
 
 WORKDIR /app
 
@@ -14,13 +18,26 @@ COPY package.json package-lock.json ./
 RUN npm clean-install
 
 COPY . .
+
+# Version is baked into the bundle at build time: PUBLIC_APP_VERSION ->
+# __APP_VERSION__ (vite define) -> shown in the footer. The release workflow
+# passes the git-derived SemVer; a plain local build falls back to git describe
+# / package.json (see vite.config.ts).
+ARG BUILD_VERSION=v0.0.0
+ENV PUBLIC_APP_VERSION=$BUILD_VERSION
 RUN npm run build
 
 
 # Serve the built app with adapter-node's standalone Node server. `npm run
 # build` emits a self-contained server under build/ whose entry point is
 # build/index.js, started with `node build`.
-FROM library/node:20-alpine AS runtime
+FROM library/node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS runtime
+
+# Re-declare to stamp a version label on the final image for plain local builds;
+# CI's metadata-action also applies the full OCI label set on push.
+ARG BUILD_VERSION=v0.0.0
+LABEL org.opencontainers.image.title="securityportal-web" \
+      org.opencontainers.image.version="${BUILD_VERSION}"
 
 WORKDIR /app
 

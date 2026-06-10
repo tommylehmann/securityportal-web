@@ -11,11 +11,13 @@
 // for information about these interfaces
 import type { Locale } from "$lib/i18n";
 
-// Build-time version constant, injected by Vite's `define` (see vite.config.ts)
-// and rendered in the footer.
-declare const __APP_VERSION__: string;
-
 declare global {
+  // Build-time version constant, injected by Vite's `define` (see
+  // vite.config.ts) and rendered in the footer. Declared inside `declare global`
+  // because this file is a module (it has imports), so a bare top-level
+  // `declare const` would be module-scoped and invisible to .svelte files.
+  const __APP_VERSION__: string;
+
   namespace App {
     // interface Error {}
     interface Locals {

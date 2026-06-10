@@ -26,7 +26,14 @@ node_modules/
 /test-results/
 /playwright-report/
 
+# Release artifacts (SBOMs produced by `npm run sbom` / the release workflow)
+*-sbom.cdx.json
+*-sbom.spdx.json
+
 # Editor / OS noise
 .DS_Store
 *.swp
 vite.config.*.timestamp-*
+
+# codegraph local index (security review F4 — may contain copied secrets)
+.codegraph/
