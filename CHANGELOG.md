@@ -15,11 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added (Phase 8 — REST maturity, publisher routing, feeds, content pages, authz seam)
 
 #### Publisher-scoped detail route (ADR-0016)
+
 - **Two-segment detail route:** `/advisories/[publisher]/[trackingId]` (e.g., `/advisories/Example%20AG/wid-sec-w-2026-1816`) mirrors the API's publisher-scoped permalink. Both segments are automatically URL-decoded by SvelteKit; links use `encodeURIComponent` to safely round-trip special characters (spaces, colons, umlauts).
 - **Withdrawn advisory notice:** when an advisory has been withdrawn (API returns 410 Gone), the detail page renders a localized "no longer published" notice with the tracking ID and withdrawal date instead of the document body.
 - **Withdrawn API integration:** the client's `fetchAdvisory` function now maps the API's `410 Gone` response (with the withdrawn envelope) to the detail page's withdrawn-notice data structure.
 
 #### Content-page system (ADR-0018)
+
 - **Generic content registry:** `src/lib/content/registry.ts` defines a closed map of `slug → { titleKey, kind }`. The dynamic route `[...page]` looks up slugs in the registry only; unregistered or traversal attempts return 404 before any file access.
 - **Legal content (`legal` kind):** operator-mounted Markdown at `${LEGAL_DIR}/<slug>.<locale>.md` (e.g., `impressum.de.md`). Uses the existing ADR-0010 pipeline: render to HTML, sanitize to an allow-list, show placeholder if missing/oversized/malformed.
 - **Repo content (`repo` kind):** bundled Markdown in `src/lib/content/<slug>.<locale>.md`. Trusted source, but still sanitized (belt-and-suspenders). Enables zero-configuration pages like the user manual.
@@ -27,11 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Impressum / Datenschutz migrated:** these pages are now registered entries (slug: `impressum`, `datenschutz`, kind: `legal`), no longer separate route files. Footer links are preserved; operators fill in the legal Markdown files at `${LEGAL_DIR}`.
 
 #### API surface integration
+
 - **Atom feed links:** the list links to advisories now reflect the API's publisher-scoped permalink, matching the advisory `_links.self` and Atom `<link>` href format.
 - **OpenAPI docs link:** footer now links to `/api/docs` (the Redoc viewer) for machine-readable API reference.
 - **Withdrawn 410 handling:** the client correctly interprets API 410 responses (was 200 in earlier phases); the detail page maps 410 → withdrawn notice, 404 → 404 page, 502 → error alert.
 
 #### i18n & content
+
 - **Withdrawn notice keys:** added i18n entries `detail.withdrawn.{title,body,date}` for German and English.
 - **Content page titles:** added i18n keys for new pages (`legal.impressum.headTitle`, `legal.datenschutz.headTitle`, `content.manual.headTitle`).
 - **API docs link:** added i18n entry for the footer link to `/api/docs`.

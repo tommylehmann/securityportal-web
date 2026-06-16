@@ -236,15 +236,18 @@ Single advisory rendered via the vendored CSAF webview (ADR-0016):
 Generic content-page route backed by a closed registry. Pages are rendered with sanitized HTML (same pipeline as legal pages).
 
 **Built-in pages:**
+
 - **`/impressum`** (kind: `legal`) — Imprint / company info. Reads from `${LEGAL_DIR}/impressum.de.md` and `.en.md`; shows a placeholder if missing.
 - **`/datenschutz`** (kind: `legal`) — Privacy Policy. Reads from `${LEGAL_DIR}/datenschutz.de.md` and `.en.md`; shows a placeholder if missing.
 - **`/manual`** (kind: `repo`) — User Manual. Bundled Markdown documenting how to browse the portal and use the REST API. Links to `/api/docs` for the interactive OpenAPI reference.
 
 **Security:**
+
 - The registry (`CONTENT_REGISTRY` in `src/lib/content/registry.ts`) is a **closed map**. Request slugs are looked up in the registry only; no request input is ever used to construct a file path. Unregistered or malicious slugs (e.g., `../etc/passwd`, `%2e%2e`, absolute paths) return 404 before any file access.
 - The only `{@html}` sink in the app is the sanitized output from `renderLegalMarkdown`, shared between legal and repo content. Hostile Markdown is inert (no script tags, inline events, or unsafe HTML).
 
 **Adding a new page:**
+
 1. Add an entry to `CONTENT_REGISTRY` with a slug, title i18n key, and kind (`legal` or `repo`).
 2. Add the i18n title key to `src/lib/i18n/de.json` and `src/lib/i18n/en.json`.
 3. For `kind: "repo"`, create `src/lib/content/<slug>.de.md` and `<slug>.en.md` and import them in the route handler.
