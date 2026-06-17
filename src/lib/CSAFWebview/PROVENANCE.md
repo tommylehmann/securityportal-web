@@ -23,9 +23,9 @@ This directory is a **vendored fork** of the CSAF single-document viewer.
 - **Entry-point contract (unchanged):** `convertToDocModel(json)` → `appStore` →
   `<Webview>`.
 
-Vendored files keep their original `SPDX-FileCopyrightText` (BSI / Intevation)
-and `SPDX-License-Identifier: Apache-2.0` headers — they are derived works and
-remain REUSE-compliant. Only net-new SecurityPortal files use the neutral
+Vendored files keep their original SPDX copyright and license headers
+(BSI / Intevation, Apache-2.0) — they are derived works and remain
+REUSE-compliant. Only net-new SecurityPortal files use the neutral
 `2026 SecurityPortal contributors` copyright.
 
 ## Net-new files (SecurityPortal-authored)
