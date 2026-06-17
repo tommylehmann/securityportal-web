@@ -15,7 +15,7 @@
     "test:unit": "vitest run",
     "test:integration": "playwright test",
     "audit:prod": "npm audit --omit=dev",
-    "sbom": "cyclonedx-npm --output-format JSON --output-file securityportal-web-sbom.cdx.json --production-only"
+    "sbom": "cyclonedx-npm --output-format JSON --output-file securityportal-web-sbom.cdx.json --omit dev"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

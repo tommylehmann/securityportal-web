@@ -90,14 +90,16 @@ jobs:
       - name: Install @cyclonedx/cyclonedx-npm
         # CycloneDX for npm generates a CycloneDX SBOM from package-lock.json.
         # Installed globally here so it is available as a CLI command.
-        run: npm install -g @cyclonedx/cyclonedx-npm
+        # Pinned to a major version so the CLI surface (flags) cannot drift
+        # underneath CI on an unpinned global install.
+        run: npm install -g @cyclonedx/cyclonedx-npm@5
 
       - name: Generate SBOM
         run: |
           cyclonedx-npm \
             --output-format JSON \
             --output-file securityportal-web-sbom.cdx.json \
-            --production-only
+            --omit dev
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
