@@ -32,10 +32,6 @@
 
   const values = $derived(group?.values ?? []);
 
-  function isSelected(value: string): boolean {
-    return selected.includes(value);
-  }
-
   // Surface a selected value even when the current (narrowed) facet response no
   // longer lists it, so a user can always un-check what they selected.
   const orphanSelected = $derived(
@@ -55,25 +51,24 @@
 {:else}
   <ul class="max-h-56 space-y-1 overflow-y-auto pr-1 text-sm">
     {#each values as entry (entry.value)}
+      {@const label = labelOf ? labelOf(entry.value) : entry.value}
       <li>
         <label class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
           <input
             type="checkbox"
             class="size-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700"
-            checked={isSelected(entry.value)}
+            checked={selected.includes(entry.value)}
             onchange={(event) => toggle(entry.value, event.currentTarget.checked)}
           />
-          <span
-            class="min-w-0 flex-1 truncate"
-            title={labelOf ? labelOf(entry.value) : entry.value}
-          >
-            {labelOf ? labelOf(entry.value) : entry.value}
+          <span class="min-w-0 flex-1 truncate" title={label}>
+            {label}
           </span>
           <span class="tabular-nums text-xs text-gray-500 dark:text-gray-400">{entry.count}</span>
         </label>
       </li>
     {/each}
     {#each orphanSelected as value (value)}
+      {@const label = labelOf ? labelOf(value) : value}
       <li>
         <label class="flex items-center gap-2 text-gray-700 dark:text-gray-300">
           <input
@@ -82,8 +77,8 @@
             checked={true}
             onchange={(event) => toggle(value, event.currentTarget.checked)}
           />
-          <span class="min-w-0 flex-1 truncate" title={labelOf ? labelOf(value) : value}>
-            {labelOf ? labelOf(value) : value}
+          <span class="min-w-0 flex-1 truncate" title={label}>
+            {label}
           </span>
           <span class="tabular-nums text-xs text-gray-500 dark:text-gray-400">0</span>
         </label>

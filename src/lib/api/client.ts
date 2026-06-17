@@ -425,7 +425,7 @@ export function parseFilters(searchParams: URLSearchParams): Filters {
  * dimensions so the URL stays clean. The canonical Filters→URL mapping; the
  * inverse of parseFilters (it round-trips a parsed filter set).
  */
-export function filtersToSearchParams(filters: Filters): URLSearchParams {
+function filtersToSearchParams(filters: Filters): URLSearchParams {
   const params = new URLSearchParams();
   appendFilterParams(params, filters);
   return params;
