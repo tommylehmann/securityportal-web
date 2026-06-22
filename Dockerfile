@@ -10,7 +10,7 @@
 # comment is human-readable. Dependabot (docker ecosystem, see
 # .github/dependabot.yml) bumps the digest.
 # library/node:20-alpine
-FROM library/node:26-alpine@sha256:9c0e1e52125d6b67d505cf75b4880fcf1290ccea5c480849910e1d57b2cf72b5 AS build
+FROM library/node:26-alpine@sha256:a2dc166a387cc6ca1e62d0c8e265e49ca985d6e60abc9fe6e6c3d6ce8e63f606 AS build
 
 WORKDIR /app
 
@@ -31,7 +31,7 @@ RUN npm run build
 # Serve the built app with adapter-node's standalone Node server. `npm run
 # build` emits a self-contained server under build/ whose entry point is
 # build/index.js, started with `node build`.
-FROM library/node:26-alpine@sha256:9c0e1e52125d6b67d505cf75b4880fcf1290ccea5c480849910e1d57b2cf72b5 AS runtime
+FROM library/node:26-alpine@sha256:a2dc166a387cc6ca1e62d0c8e265e49ca985d6e60abc9fe6e6c3d6ce8e63f606 AS runtime
 
 # Re-declare to stamp a version label on the final image for plain local builds;
 # CI's metadata-action also applies the full OCI label set on push.
